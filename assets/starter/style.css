@@ -1,0 +1,66 @@
+/* ---------- token: ganti sesuai brand ---------- */
+:root {
+  --bg: #f4f1ea;
+  --fg: #141414;
+  --muted: #6b6760;
+  --accent: #e2482d;
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease-out: cubic-bezier(.22, 1, .36, 1);     /* dipakai R03, R07 */
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --gutter: clamp(16px, 4vw, 48px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+img, video, canvas, svg { display: block; max-width: 100%; }
+
+/* ---------- section dasar ---------- */
+.section {
+  position: relative;
+  min-height: 100svh;
+  padding: var(--gutter);
+  display: grid;
+  place-items: center;
+  overflow: clip;
+}
+.section__inner { width: min(1200px, 100%); }
+
+/* Section scroll-driven: tinggi besar + isi sticky. Atur --scroll-length per section. */
+.section--pinned { min-height: auto; height: var(--scroll-length, 300vh); padding: 0; display: block; }
+.section--pinned > .sticky {
+  position: sticky; top: 0; height: 100svh; overflow: hidden;
+  display: grid; place-items: center; padding: var(--gutter);
+}
+
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+.display { font-family: var(--font-display); font-size: clamp(44px, 9vw, 140px); line-height: .92; letter-spacing: -.02em; margin: 0; }
+.lead { max-width: 46ch; font-size: clamp(16px, 1.6vw, 20px); color: var(--muted); }
+
+.demo-dot { width: 64px; height: 64px; border-radius: 50%; background: var(--accent); margin-top: 32px; will-change: transform; }
+
+/* Canvas/WebGL selalu lapisan di belakang konten HTML */
+.layer-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* Fokus harus terlihat */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---------- reduced motion: state statis yang rapi ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .section--pinned { height: auto; }
+  .section--pinned > .sticky { position: relative; height: auto; min-height: 100svh; }
+}

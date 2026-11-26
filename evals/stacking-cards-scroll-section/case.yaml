@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: stacking-cards-scroll-section
+expected_outcome: |
+  A single section for Ruang Lantai with four sticky project cards that stack while scrolling (previous card recedes) and a heading that reveals word by word, accessible and reduced-motion safe.

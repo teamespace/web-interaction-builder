@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interaction Demo</title>
+  <link rel="stylesheet" href="./style.css" />
+
+  <!--
+    Library opsional. Hapus yang tidak dipakai. Versi dipatok supaya hasil stabil.
+    GSAP + ScrollTrigger (pin banyak section, scrub dengan snap):
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    Lenis (smooth scroll, otomatis mati saat reduced-motion lewat setupSmoothScroll):
+      <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+    Matter.js (physics 2D):
+      <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+    Three.js lewat import map (aktifkan blok di bawah):
+  -->
+  <!--
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  -->
+</head>
+<body>
+  <main>
+    <!-- Satu <section> per interaksi. data-section dipakai main.js untuk menemukan section. -->
+    <section class="section section--demo" data-section="demo" aria-labelledby="demo-title">
+      <div class="section__inner">
+        <p class="eyebrow">Placeholder</p>
+        <h1 id="demo-title" class="display">Ganti judul ini</h1>
+        <p class="lead">Teks placeholder. Ganti dengan konten brand.</p>
+        <div class="demo-dot" aria-hidden="true"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

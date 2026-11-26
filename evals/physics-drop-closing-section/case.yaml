@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: physics-drop-closing-section
+expected_outcome: |
+  A single closing section for Kopi Senja in dark brown and cream where each click or tap drops a shape chip that falls under gravity and piles up, with reduced-motion and touch handled.
