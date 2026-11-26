@@ -69,7 +69,6 @@ skills/web-interaction-builder/
 │   ├── quality-gate.md          # mandatory checklist + asset budget
 │   └── patterns/                # 78 patterns in 6 families + generated index.md
 └── scripts/build_index.py       # rebuilds patterns/index.md
-examples/                        # sections built with the skill (open with any static server)
 evals/                           # test scenarios
 ```
 
@@ -82,14 +81,6 @@ evals/                           # test scenarios
 | Transitions | 12 | `route-veil-transition`, `mpa-view-transition`, `flip-morph`, `circle-wipe` |
 | Generative | 6 | `pixel-sky-dither`, `ascii-glyph-ramp`, `hand-drawn-liveliness` |
 
-## Examples
-
-Two sections built by the skill during testing, in `examples/`:
-
-- `kopi-senja-field`: a closing section where every tap drops a chip that falls and piles up (pattern `physics-drop-field`, Matter.js).
-- `ruang-lantai-cards`: project cards that stack while scrolling, with a word-by-word heading reveal (patterns `sticky-card-stack` + `masked-split-reveal`, CSS only).
-
-Run `python3 -m http.server` in the repo and open `/examples/<name>/`.
 
 ## Principles
 
