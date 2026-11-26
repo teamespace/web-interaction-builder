@@ -60,3 +60,7 @@ Lalu minta Claude misalnya: *"bikinin 1 section kayak hero di <url>, bagian yang
 ## Catatan
 
 Referensi dibedah untuk mempelajari teknik dan angka. Tidak ada kode situs referensi yang disalin; semua snippet ditulis ulang. Nama dan karya situs referensi milik pemiliknya masing-masing.
+
+## Lisensi
+
+[MIT](LICENSE)

@@ -1,12 +1,10 @@
 # Pola WebGL & 3D
 
-Bab ini berisi pola 3D yang ditemukan di bedah R01–R17: dari model yang di-swap dengan blur, scene produk tanpa file model, buku yang membalik halaman, sampai point cloud yang menyusun ulang dirinya. Semua resep ditulis ulang pakai **Three.js r160** (import map) dan runtime `motion-core.js` milik skill. Geometrinya prosedural/primitive, jadi bisa langsung jalan tanpa aset proprietary.
-
-Aturan bab ini: 3D itu mahal. Sebelum memilih Three.js, cek dulu tangga di bawah. Banyak referensi "3D" yang sebenarnya cukup dibuat dengan CSS 3D, SVG, atau image sequence.
+Bab ini berisi pola 3D dari bedah R01–R17: model yang di-swap dengan blur, scene produk tanpa file model, buku yang membalik halaman, sampai point cloud yang menyusun ulang dirinya. Semua resep ditulis ulang pakai **Three.js r160** (import map) dan runtime `motion-core.js`, dengan geometri prosedural/primitive supaya jalan tanpa aset proprietary. Aturan utamanya: 3D itu mahal, jadi cek tangga di bawah dulu.
 
 ## Tangga teknik
 
-Naik satu anak tangga hanya kalau anak tangga di bawahnya benar-benar tidak cukup.
+Naik satu anak tangga hanya kalau yang di bawahnya benar-benar tidak cukup. Banyak referensi "3D" yang sebenarnya cukup dibuat dengan SVG, CSS 3D, atau image sequence.
 
 | # | Teknik | Cukup kalau… | Contoh di riset | Biaya kira-kira |
 |---|---|---|---|---|
@@ -59,23 +57,17 @@ import { defineSection } from './motion-core.js';
 let gl;                                                       // cek sekali saja, jangan bikin context berulang
 export const hasWebGL = () => (gl ??= (() => { try { const c = document.createElement('canvas');
   return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; } })());
-const disposeTree = (root) => root.traverse((o) => {
-  o.geometry?.dispose();
+const disposeTree = (root) => root.traverse((o) => { o.geometry?.dispose();
   for (const m of [].concat(o.material || [])) {
-    for (const v of Object.values(m)) if (v?.isTexture) v.dispose();
-    for (const u of Object.values(m.uniforms || {})) if (u.value?.isTexture) u.value.dispose();
-    m.dispose();
-  }
-});
+    for (const v of [...Object.values(m), ...Object.values(m.uniforms || {}).map((u) => u.value)]) if (v?.isTexture) v.dispose();
+    m.dispose(); } });
 export function glSection(el, build, { dprCap = 1.5, alpha = true, antialias = true, staticOnReduce = true, fov = 35 } = {}) {
   if (!hasWebGL()) { el.classList.add('gl-off'); return null; }
   return defineSection(el, (ctx) => {
     const canvas = el.querySelector('canvas.gl'), ac = new AbortController();
     const renderer = new THREE.WebGLRenderer({ canvas, alpha, antialias, powerPreference: 'high-performance' });
-    let dpr = Math.min(devicePixelRatio, ctx.small ? Math.min(dprCap, 1.25) : dprCap);
-    renderer.setPixelRatio(dpr);
-    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 100);
-    const render = () => renderer.render(scene, camera);
+    let dpr = Math.min(devicePixelRatio, ctx.small ? Math.min(dprCap, 1.25) : dprCap); renderer.setPixelRatio(dpr);
+    const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 100), render = () => renderer.render(scene, camera);
     const api = build({ ...ctx, THREE, renderer, scene, camera, render, signal: ac.signal }) || {};
     const resize = () => {
       const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
@@ -103,7 +95,7 @@ export function glSection(el, build, { dprCap = 1.5, alpha = true, antialias = t
 }
 ```
 
-Kontrak `build(ctx)`: `ctx = { el, reduced, fine, small, THREE, renderer, scene, camera, render, signal }`. Kembalikan `{ update(dt, t) → false kalau tidak perlu render, onResize(w, h), renderStatic(), destroy() }`. Pasang listener dengan `{ signal }` supaya lepas otomatis di `destroy`. Pola yang di-scrub scroll memakai `staticOnReduce: false`: scroll tetap dikendalikan user, gerakan idle dimatikan di dalam `update`. Pola tanpa `renderStatic` menampilkan poster saat reduced-motion.
+Kontrak `build(ctx)`: `ctx = { el, reduced, fine, small, THREE, renderer, scene, camera, render, signal }`. Kembalikan `{ update(dt, t) → false kalau tidak perlu render, onResize(w, h), renderStatic(), destroy() }`. Pasang listener dengan `{ signal }` supaya lepas otomatis di `destroy`. Pola yang di-scrub scroll memakai `staticOnReduce: false`: scroll tetap dikendalikan user, gerakan idle dimatikan di dalam `update`. Kalau pola tidak punya pose statis yang masuk akal, isi `renderStatic` dengan `el.classList.add('gl-off')` supaya poster yang tampil.
 
 **Lazy mount** (R03, R07, R08): import modul 3D hanya saat section mendekat (`rootMargin: '300% 0px'`), prefetch saat idle.
 
@@ -118,8 +110,7 @@ window.requestIdleCallback?.(() => import('./sections/product-scene.js'), { time
 
 ### `blur-masked-model-swap` — Ganti model di puncak blur
 
-**Sumber:** R01, R17 · **Mode:** A · **Tingkat berat:** sedang (GLB) / ringan (primitive)
-
+**Sumber:** R01, R17 · **Mode:** A · **Tingkat berat:** sedang (GLB) / ringan (primitive)\
 **Kapan dipakai:** hero dengan beberapa varian produk (rasa, warna, tipe) yang dipilih lewat kartu. Pergantiannya disembunyikan oleh putaran cepat + blur, jadi tidak perlu morph antar-model.
 
 **Parameter:**
@@ -135,9 +126,8 @@ window.requestIdleCallback?.(() => import('./sections/product-scene.js'), { time
 
 **Resep:**
 1. Semua varian dibangun sekali di scene yang sama, yang tidak aktif `visible = false`. Dengan GLB: preload berantai setelah `load` pertama, dan **jangan swap ke model yang belum `loaded`**.
-2. Satu sumber sudut: rotasi = pointer (di-damp) + `rot` dari spin, jadi model baru mewarisi sudut yang sama.
-3. Fase A: rotasi `k²` + blur naik → tukar `visible` → fase B `ease.outBack(k, 0.7)` + blur turun. Bersamaan: token warna `:root` (CSS transition pada custom property ber-`@property`), copy out → ganti teks → in.
-4. Lock input sampai **tween terpanjang** selesai (2.1 s). Varian murah tanpa spin (R17): fade canvas 300 ms + hold 500 ms.
+2. Satu sumber sudut: rotasi = pointer (di-damp) + `rot` dari spin, jadi model baru mewarisi sudut yang sama. Fase A: rotasi `k²` + blur naik → tukar `visible` → fase B `ease.outBack(k, 0.7)` + blur turun. Bersamaan: token warna `:root` (CSS transition pada custom property ber-`@property`), copy out → ganti teks → in.
+3. Lock input sampai **tween terpanjang** selesai (2.1 s). Varian murah tanpa spin (R17): fade canvas 300 ms + hold 500 ms.
 
 ```js
 import { glSection } from './gl-stage.js';
@@ -146,8 +136,7 @@ import { damp, ease } from './motion-core.js';
 export function modelSwap(el, variants, { turns = 1, blur = 12, A = 0.6, B = 1.5 } = {}) {
   let select = () => {};
   const sec = glSection(el, ({ THREE, scene, camera, reduced, fine, render, signal }) => {
-    camera.position.set(0, 0.3, 4.5);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.4));
+    camera.position.set(0, 0.3, 4.5); scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.4));
     const models = variants.map((v, i) => { const g = v.build(THREE); g.visible = i === 0; scene.add(g); return g; });
     const canvas = el.querySelector('canvas.gl'), ptr = { x: 0, y: 0 }, cam = { x: 0, y: 0 };
     let active = 0, next = -1, t = -1, rot = 0;
@@ -191,8 +180,7 @@ export function modelSwap(el, variants, { turns = 1, blur = 12, A = 0.6, B = 1.5
 
 ### `procedural-product-scene` — Scene produk tanpa file model
 
-**Sumber:** R02, R17 · **Mode:** A+B · **Tingkat berat:** sedang
-
+**Sumber:** R02, R17 · **Mode:** A+B · **Tingkat berat:** sedang\
 **Kapan dipakai:** produk yang bentuknya bisa dideskripsikan sebagai profil putar (gelas, mug, botol, kaleng, toples) atau kotak/silinder (pod, alat). Hasilnya terlihat "product shot" tanpa mengunduh model sama sekali.
 
 **Parameter:**
@@ -201,16 +189,14 @@ export function modelSwap(el, variants, { turns = 1, blur = 12, A = 0.6, B = 1.5
 |---|---|---|---|
 | renderer | DPR cap 1.25 (R02), ACES exposure 1.05 | DPR 1–1.5, exposure 0.9–1.3 | warna "foto produk" |
 | env | `RoomEnvironment`, sigma 0.04 | — | refleksi instan 0 byte; HDRI 1k (1.6 MB) di-swap belakangan |
-| key light | 2.6, shadow 1024 / 512 mobile, catcher `ShadowMaterial` opacity 0.32 | opacity 0.08–0.4 | satu-satunya caster, bayangan di atas bg CSS |
-| rim light | 2.1, warna ikut section, lerp 0.08/frame | — | mood per chapter |
+| lampu | key 2.6 (shadow 1024 / 512 mobile) → `ShadowMaterial` opacity 0.32; rim 2.1, warna ikut section, lerp 0.08/frame | opacity 0.08–0.4 | satu caster; mood per chapter |
 | lathe segmen | 64–80 (48 mobile) | — | halus vs jumlah vertex |
 | idle | wobble `sin(t·0.3..0.4)·0.03` rad, parallax lerp 0.05/frame (λ ≈ 3) | wobble 0–0.05 | tidak pernah benar-benar diam |
 
 **Resep:**
-1. Renderer `alpha: true` di atas gradient CSS. Env `RoomEnvironment` dulu, HDRI ≤ 1k opsional setelah load.
-2. Objek dari `LatheGeometry` (profil 2D diputar). Profil yang sama dipakai untuk `radiusLookup(y)` saat mengisi cairan (`liquid-fx`).
-3. Tekstur digambar di Canvas2D (label, speckle, angka timbangan); redraw `CanvasTexture` **hanya kalau isinya berubah**.
-4. Key light cast shadow ke `ShadowMaterial`; rim light di-damp ke warna section aktif. Beri nama mesh dengan kontrak (`BODY_*`, `Addon1_*`) supaya part bisa dicari lewat nama (`product-configurator-3d`).
+1. Renderer `alpha: true` di atas gradient CSS; env `RoomEnvironment` dulu, HDRI ≤ 1k opsional setelah load. Objek dari `LatheGeometry` (profil 2D diputar). Profil yang sama dipakai untuk `radiusLookup(y)` saat mengisi cairan (`liquid-fx`).
+2. Tekstur digambar di Canvas2D (label, speckle, angka timbangan); redraw `CanvasTexture` **hanya kalau isinya berubah**.
+3. Key light cast shadow ke `ShadowMaterial`; rim light di-damp ke warna section aktif. Beri nama mesh dengan kontrak (`BODY_*`, `Addon1_*`) supaya part bisa dicari lewat nama (`product-configurator-3d`).
 
 ```js
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -220,13 +206,10 @@ export function productScene(el) {
   return glSection(el, ({ THREE, scene, camera, renderer, small, signal }) => {
     renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const pm = new THREE.PMREMGenerator(renderer);
-    scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose();
+    const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; pm.dispose();
     camera.position.set(0, 1.4, 4.2); camera.lookAt(0, 0.6, 0);
-    const key = new THREE.DirectionalLight(0xfff0dc, 2.6); key.position.set(2, 4, 3);
-    key.castShadow = true; key.shadow.mapSize.setScalar(small ? 512 : 1024);
-    const rim = new THREE.DirectionalLight(0xffcf9e, 2.1); rim.position.set(-3, 2, -4);
-    scene.add(key, rim);
+    const key = new THREE.DirectionalLight(0xfff0dc, 2.6); key.position.set(2, 4, 3); key.castShadow = true; key.shadow.mapSize.setScalar(small ? 512 : 1024);
+    const rim = new THREE.DirectionalLight(0xffcf9e, 2.1); rim.position.set(-3, 2, -4); scene.add(key, rim);   // rim.color di-damp ke warna section
     const c = Object.assign(document.createElement('canvas'), { width: 512, height: 256 }), g = c.getContext('2d');
     g.fillStyle = '#e9e1d4'; g.fillRect(0, 0, 512, 256);                 // speckle keramik, 0 byte network
     for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(60,40,30,${Math.random() * 0.5})`; g.fillRect(Math.random() * 512, Math.random() * 256, 2, 2); }
@@ -237,8 +220,7 @@ export function productScene(el) {
     cup.name = 'BODY_cup'; cup.castShadow = true; scene.add(cup);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.ShadowMaterial({ color: 0x2a1608, opacity: 0.32 }));
     floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-    const ptr = { x: 0 }, cur = { x: 0 };
-    el.addEventListener('pointermove', (e) => { ptr.x = e.clientX / innerWidth - 0.5; }, { signal });
+    const ptr = { x: 0 }, cur = { x: 0 }; el.addEventListener('pointermove', (e) => { ptr.x = e.clientX / innerWidth - 0.5; }, { signal });
     return {
       update(dt, t) {
         cur.x = damp(cur.x, ptr.x, 3, dt);
@@ -258,8 +240,7 @@ export function productScene(el) {
 
 ### `liquid-fx` — Aliran, isi gelas, riak air
 
-**Sumber:** R02, R12 · **Mode:** A · **Tingkat berat:** sedang (stream + clip) / berat (ripple sim)
-
+**Sumber:** R02, R12 · **Mode:** A · **Tingkat berat:** sedang (stream + clip) / berat (ripple sim)\
 **Kapan dipakai:** cerita produk minuman: kopi dituang, gelas terisi, permukaan air bereaksi ke kursor. Tiga efek kecil yang bisa dipakai terpisah di atas `procedural-product-scene`.
 
 **Parameter:**
@@ -281,8 +262,7 @@ export function productScene(el) {
 export function createStream(THREE, { seg = 36, rad = 6, color = 0x5a3216 } = {}) {
   const geo = new THREE.TubeGeometry(new THREE.LineCurve3(new THREE.Vector3(), new THREE.Vector3(0, -1, 0)), seg, 0.02, rad, false);
   const attr = geo.attributes.position; attr.setUsage(THREE.DynamicDrawUsage);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color, roughness: 0.15, clearcoat: 1 }));
-  mesh.frustumCulled = false;
+  const mesh = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ color, roughness: 0.15, clearcoat: 1 })); mesh.frustumCulled = false;
   const P = new THREE.Vector3(), T = new THREE.Vector3(), N = new THREE.Vector3(), Bn = new THREE.Vector3(), tmp = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
   // A = bibir wadah, C = titik kontrol, B = target. tail..head (0..1) = bagian aliran yang tampil
   mesh.userData.update = (A, C, B, r0, r1, tail, head, time) => {
@@ -304,10 +284,9 @@ export function createStream(THREE, { seg = 36, rad = 6, color = 0x5a3216 } = {}
 
 // Cairan di wadah miring tetap datar: buang fragmen di atas y = level (world space)
 export function fillLevel(THREE, renderer, liquidMesh) {
-  renderer.localClippingEnabled = true;
   const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
-  liquidMesh.material.clippingPlanes = [plane];
-  return (worldY) => { plane.constant = worldY; };
+  renderer.localClippingEnabled = true; liquidMesh.material.clippingPlanes = [plane];
+  return (worldY) => { plane.constant = worldY; };                  // panggil tiap frame dengan tinggi isi
 }
 ```
 
@@ -315,12 +294,10 @@ export function fillLevel(THREE, renderer, liquidMesh) {
 
 **Jebakan:**
 - R12: ripple memakai RT `FloatType` tanpa fallback, dan mesh air di-tessellate saat runtime (`TessellateModifier`) → CPU spike saat mount. Siapkan geometri yang sudah rapat.
-- Lupa `localClippingEnabled = true` → clip plane diam-diam tidak berpengaruh.
 
 ### `scroll-3d-product-story` — Cerita produk 3D di-scrub scroll + burst
 
-**Sumber:** R12, R02 · **Mode:** A+B · **Tingkat berat:** berat
-
+**Sumber:** R12, R02 · **Mode:** A+B · **Tingkat berat:** berat\
 **Kapan dipakai:** satu objek "benang merah" di sticky canvas di belakang beberapa section DOM: berputar, terbelah, menyatu, lalu ada momen klimaks (objek lain muncul dari dalam). Mode A: satu section 300–500vh. Mode B: beberapa chapter dengan objek yang "dioper" antar-chapter.
 
 **Parameter:**
@@ -338,8 +315,7 @@ export function fillLevel(THREE, renderer, liquidMesh) {
 **Resep:**
 1. Wrapper tinggi berisi `div` sticky 100vh (`pointer-events:none`) dengan canvas, overlay section DOM di atasnya. Scene graph `tilt > coco{ L, R, can }`: objek reveal disimpan **di dalam** grup dengan scale 0, jadi "keluar dari dalam" tanpa hitung posisi.
 2. `p = stickyProgress(wrapper)`; tiap gerakan = jendela `range(p, a, b)` + easing (pengganti timeline GSAP yang di-scrub; `tl.progress(p)` juga boleh).
-3. Burst **time-based**, dipicu threshold dengan hysteresis. R12 mengunci scroll 2.7 s (Lenis `stop`); di skill lock itu opsional, default **mati**. HUD DOM disinkronkan lewat event (`seq:burst` + sisa durasi), bukan membaca state Three.js.
-4. Mode B: objek yang pindah chapter memakai `matrixAutoUpdate = false`, di-blend (decompose → lerp/slerp → compose) pose A → carry pose → pose B, plus hop `sin(πk)`.
+3. Burst **time-based**, dipicu threshold dengan hysteresis. R12 mengunci scroll 2.7 s (Lenis `stop`); di skill lock itu opsional, default **mati**. HUD DOM disinkronkan lewat event (`seq:burst` + sisa durasi), bukan membaca state Three.js. Mode B: objek yang pindah chapter memakai `matrixAutoUpdate = false`, di-blend (decompose → lerp/slerp → compose) pose A → carry pose → pose B, plus hop `sin(πk)`.
 
 ```js
 import { glSection } from './gl-stage.js';
@@ -387,8 +363,7 @@ export function productStory(el, { burstAt = 0.985, rearm = 0.95, BURST = 2.7 } 
 
 ### `scroll-choreographed-backdrop` — Backdrop 3D fixed yang berpose ikut scroll
 
-**Sumber:** R10 · **Mode:** B (A kalau dibatasi ke satu section pinned) · **Tingkat berat:** sedang
-
+**Sumber:** R10 · **Mode:** B (A kalau dibatasi ke satu section pinned) · **Tingkat berat:** sedang\
 **Kapan dipakai:** layer 3D `position: fixed` di belakang semua section (hero → about → numbers) yang berganti pose di titik-titik scroll, plus intro saat load dan putaran ambient sangat lambat.
 
 **Spline atau Three.js?** Spline (`<spline-viewer>`, jalur R10) paling cepat dibuat dan desainer bisa sendiri, tapi membawa runtime viewer dari CDN + scene 125–145 KB per breakpoint (3 file), keyframe px mentah, render terus-menerus, dan tidak menghormati reduced-motion. Three.js (resep ini) butuh developer, tapi 0 byte geometri, keyframe ditambatkan ke section, bisa berhenti render, dan punya pose statis. Pakai Spline hanya untuk prototipe atau kalau tim tidak punya developer 3D.
@@ -429,8 +404,7 @@ export function backdrop(el, { count = 40 } = {}) {                     // [sele
       const [a, A] = keys[i - 1], [b, B] = keys[i], k = ease.inOutCubic((y - a) / Math.max(1, b - a));
       for (let j = 0; j < 6; j++) tgt[j] = A[j] + (B[j] - A[j]) * k;
     };
-    const apply = () => { rig.position.set(cur[0], cur[1], cur[2]); rig.rotation.set(cur[3] * D, cur[4] * D, cur[5] * D); };
-    measure();
+    const apply = () => { rig.position.set(cur[0], cur[1], cur[2]); rig.rotation.set(cur[3] * D, cur[4] * D, cur[5] * D); }; measure();
     return {
       onResize: measure,
       update(dt) {
@@ -454,8 +428,7 @@ export function backdrop(el, { count = 40 } = {}) {                     // [sele
 
 ### `pinned-object-drop` — Objek jatuh ke tengah + transisi cahaya
 
-**Sumber:** R11 · **Mode:** A+B · **Tingkat berat:** sedang (primitive) / berat (GLB + bloom)
-
+**Sumber:** R11 · **Mode:** A+B · **Tingkat berat:** sedang (primitive) / berat (GLB + bloom)\
 **Kapan dipakai:** objek "pahlawan" yang jatuh masuk ke tengah layar saat chapter tertentu dimulai, lalu tetap di-pin sementara teks DOM mengalir di depan/belakangnya. Varian mode B: section ditutup dengan ledakan cahaya (glow → layar penuh krem → section berikutnya).
 
 **Parameter:**
@@ -469,10 +442,9 @@ export function backdrop(el, { count = 40 } = {}) {                     // [sele
 | light burst | spring kritis ω 6.5 (13 kalau baru scroll cepat) | — | `createSpring({ stiffness: 42, damping: 13 })` |
 
 **Resep:**
-1. Canvas fixed di belakang kolom teks; objek primitive (rounded box + silinder lensa) atau GLB.
-2. Drop **time-based** 1.95 s yang dipicu threshold progress (bukan di-scrub) supaya terasa berat. Rotasi = amplitudo × osilator teredam × envelope; Y dalam satuan tinggi viewport world (`2·tan(fov/2)·dist`).
-3. **Light burst:** progress spring 0 → 1. 0–0.4 judul makin terang (`text-shadow`); 0.4–0.7 overlay krem `#f3ead8` naik ke opacity 1 dan konten diganti di baliknya; 0.7–1 overlay turun. Bloom (R11: 5 level) hanya kalau budget GPU cukup.
-4. Chapter berat di-`import()` saat progress mendekat (R11 memanaskan chapter "expose" saat chapter sebelumnya mulai); shader warm-up sudah di helper.
+1. Canvas fixed di belakang kolom teks; objek primitive (rounded box + silinder lensa) atau GLB. Drop **time-based** 1.95 s yang dipicu threshold progress (bukan di-scrub) supaya terasa berat. Rotasi = amplitudo × osilator teredam × envelope; Y dalam satuan tinggi viewport world (`2·tan(fov/2)·dist`).
+2. **Light burst:** progress spring 0 → 1. 0–0.4 judul makin terang (`text-shadow`); 0.4–0.7 overlay krem `#f3ead8` naik ke opacity 1 dan konten diganti di baliknya; 0.7–1 overlay turun. Bloom (R11: 5 level) hanya kalau budget GPU cukup.
+3. Chapter berat di-`import()` saat progress mendekat (R11 memanaskan chapter "expose" saat chapter sebelumnya mulai); shader warm-up sudah di helper.
 
 ```js
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -514,12 +486,10 @@ export function objectDrop(el, getProgress, { at = 0.82, rearm = 0.58 } = {}) {
 **Jebakan:**
 - R11 mematikan scroll native seluruh halaman (virtual scroll): tidak ada scrollbar, anchor, atau find-in-page. Untuk skill, jalankan pola ini di atas sticky + scroll native.
 - R11: field cahaya fluid sim + LIC 8-tap adalah bagian termahal (p95 12.5 → 8.5 ms kalau dimatikan). Jangan bawa ke versi ringan.
-- Drop yang di-scrub (bukan time-based) terasa ringan dan "mengambang"; R11 sengaja memakai trigger + waktu.
 
 ### `torn-edge-portal` — Portal bertepi sobek antar section
 
-**Sumber:** R03 · **Mode:** A+B · **Tingkat berat:** ringan–sedang
-
+**Sumber:** R03 · **Mode:** A+B · **Tingkat berat:** ringan–sedang\
 **Kapan dipakai:** transisi dramatis dari hero ke section berikutnya: lubang bertepi kasar tumbuh dari tengah layar dan section berikutnya sudah terlihat di dalamnya. Varian: tepi kertas sobek yang naik di batas section.
 
 **Parameter:**
@@ -581,12 +551,10 @@ export function portal(el, next, { a = 0.8, b = 0.99, fill = 0x101010 } = {}) {
 **Jebakan:**
 - R03: reduced-motion hanya dihormati sebagian; portal, video scrub, dan Lenis tetap jalan.
 - Rumus radius CSS dan shader berbeda sedikit saja → tepi sobek tidak menempel ke mask, terlihat dua lingkaran.
-- Warna isi lubang tidak sama dengan bg section berikutnya → seam kelihatan saat `is-arrived`.
 
 ### `skinned-page-flip-book` — Buku yang halamannya membalik oleh scroll
 
-**Sumber:** R03 · **Mode:** A · **Tingkat berat:** berat
-
+**Sumber:** R03 · **Mode:** A · **Tingkat berat:** berat\
 **Kapan dipakai:** katalog, lookbook, atau portfolio yang ingin terasa seperti buku fisik di atas meja. Halaman benar-benar melengkung saat dibalik, dan semuanya digerakkan scroll pada section pinned (±620vh).
 
 **Parameter:**
@@ -616,8 +584,7 @@ function page(THREE, thick, mats) {
     const x = pos.getX(i) * SEG, b = Math.min(Math.floor(x), SEG), f = x - b;
     idx.push(b, Math.min(b + 1, SEG), 0, 0); wgt.push(1 - f, f, 0, 0);
   }
-  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(idx, 4));
-  g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(wgt, 4));
+  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(idx, 4)).setAttribute('skinWeight', new THREE.Float32BufferAttribute(wgt, 4));
   const bones = [];
   for (let i = 0; i <= SEG; i++) { const b = new THREE.Bone(); if (i) { b.position.x = 1 / SEG; bones[i - 1].add(b); } bones.push(b); }
   const mesh = new THREE.SkinnedMesh(g, mats); mesh.add(bones[0]); mesh.bind(new THREE.Skeleton(bones)); mesh.frustumCulled = false;
@@ -657,8 +624,7 @@ export function book(el, pageMats, { fit = 3.2 } = {}) {
 
 ### `css3d-sphere-gallery` — Bola galeri CSS 3D (tanpa WebGL)
 
-**Sumber:** R03, R05 · **Mode:** A · **Tingkat berat:** ringan
-
+**Sumber:** R03, R05 · **Mode:** A · **Tingkat berat:** ringan\
 **Kapan dipakai:** koleksi 15–50 gambar yang ingin terasa "melayang di langit": bola yang berputar sendiri, ikut berputar saat scroll, dan bisa di-drag. Karena isinya kartu datar, CSS 3D sudah cukup. Kalau objeknya bisa dipilih dan cuma butuh ilusi kedalaman (gigi, kursi, pin peta), turun satu anak tangga lagi ke **SVG prosedural** seperti R05: hit-test native, filter "clay" untuk kedalaman, dan tanpa rAF.
 
 **Parameter:**
@@ -666,8 +632,7 @@ export function book(el, pageMats, { fit = 3.2 } = {}) {
 | nama | default | rentang wajar | efeknya |
 |---|---|---|---|
 | tile | 46 (16 karya diulang), golden angle y 0.86 → −0.86; 112 px landscape / 80 px portrait | 20–60 | kepadatan bola, hindari kutub |
-| radius | `clamp(180, 0.24·vw, 330)` px; mobile `0.4·vw`, tile ×0.62 | — | — |
-| perspective | 1400 px | 1000–1800 | — |
+| radius / perspective | `clamp(180, 0.24·vw, 330)` px (mobile `0.4·vw`, tile ×0.62); perspective 1400 px | persp. 1000–1800 | ukuran bola dan kedalaman |
 | auto-rotate / scroll | 0.06°/frame (follow 0.02); Δprogress × 260° | 0–0.1°; 120–360° | 0 saat reduced |
 | drag | vy = dx × 0.25, vx = −dy × 0.15, damping X 0.94/frame, rotX ±40° (awal −8°) | — | — |
 | klik vs drag | 6 px | 4–10 px | pointer capture baru diambil setelah lewat ambang |
@@ -690,8 +655,7 @@ export function sphereGallery(el) {
   };
   return defineSection(el, ({ reduced }) => {
     const st = { x: -8, y: 0, vx: 0, vy: 0, drag: null }, ac = new AbortController(), on = { signal: ac.signal };
-    let prevP = passProgress(el);
-    place();
+    let prevP = passProgress(el); place();
     el.addEventListener('pointerdown', (e) => { st.drag = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; }, on);
     el.addEventListener('pointermove', (e) => {
       const d = st.drag; if (!d) return;
@@ -723,13 +687,11 @@ export function sphereGallery(el) {
 
 **Jebakan:**
 - `transform-style: preserve-3d` rusak kalau ada ancestor dengan `overflow: hidden`, `filter`, atau `opacity < 1`. Tile tiba-tiba rata.
-- Lupa `backface-visibility: hidden` → tile di belakang bola terlihat terbalik dan menghalangi klik.
 - R05 (versi SVG): dengan filter blur di 32 grup, entrance bisa berat di HP low-end; dan gigi depan bawah di 375 px hanya ±20×22 px, di bawah target sentuh 44 px.
 
 ### `shelf-room-gallery` — Galeri sebagai rak di ruangan 3D
 
-**Sumber:** R06a · **Mode:** B (A versi kecil: rak saja, tanpa ruangan) · **Tingkat berat:** berat
-
+**Sumber:** R06a · **Mode:** B (A versi kecil: rak saja, tanpa ruangan) · **Tingkat berat:** berat\
 **Kapan dipakai:** homepage portfolio/library yang menyajikan koleksi sebagai benda fisik (buku di rak). Hover menarik item keluar, klik menerbangkan item ke depan kamera lalu kontennya diambil alih DOM.
 
 **Parameter:**
@@ -741,7 +703,6 @@ export function sphereGallery(el) {
 | pull hover | keluar 0.62, naik 0.03, tip 0.11 rad; spring k 0.055 d 0.3 /frame = `createSpring({ stiffness: 198, damping: 18 })` | — | konversi: k·3600, d·60 |
 | terbang & buka | 1.6 s; tip [0–.34], turn [.2–.9], open [.28–1] (cover −2.86 rad), land [.6–.98]; sag 0.22 (`sin²`), roll 0.16 | 1.2–1.8 s | — |
 | zoom DOM | 0.6 s, `p' = a·p / (1 + (a−1)·p)`, a = skala akhir/awal | — | zoom terasa seperti dolly rata |
-| mode lite | `(pointer: coarse)` atau < 760 px: shadow 1024, debu 90 (bukan 240), tanpa grain | — | — |
 
 **Resep:**
 1. Ruangan primitive: plane dinding/lantai, rak box, item `BoxGeometry` bertekstur Canvas2D; hemisphere + satu spot ber-shadow.
@@ -753,13 +714,11 @@ import { glSection } from './gl-stage.js';
 import { damp, createSpring, ease, clamp } from './motion-core.js';
 export function shelf(el, items /* [{ color }] */, { onOpen } = {}) {
   return glSection(el, ({ THREE, scene, camera, reduced, fine, signal }) => {
-    camera.fov = 27; const aim = new THREE.Vector3(0, 1.2, 0);
-    scene.add(new THREE.HemisphereLight(0xfff3e0, 0x2a2420, 2));
+    camera.fov = 27; const aim = new THREE.Vector3(0, 1.2, 0); scene.add(new THREE.HemisphereLight(0xfff3e0, 0x2a2420, 2));
     const books = items.map((it, i) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.2 + (i % 3) * 0.08, 0.9), new THREE.MeshStandardMaterial({ color: it.color, roughness: 0.7 }));
       m.position.set((i - (items.length - 1) / 2) * 0.32, 1.2, 0);
       m.userData = { i, home: m.position.clone(), s: createSpring({ stiffness: 198, damping: 18 }) }; scene.add(m); return m; });
-    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(-9, -9), pn = { x: 0, y: 0 }, par = { x: 0, y: 0 };
-    let hovered = -1, fly = null;
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(-9, -9), pn = { x: 0, y: 0 }, par = { x: 0, y: 0 }; let hovered = -1, fly = null;
     const aimAt = (e) => { const r = el.getBoundingClientRect(); pn.x = ((e.clientX - r.left) / r.width) * 2 - 1; pn.y = -((e.clientY - r.top) / r.height) * 2 + 1; ndc.set(pn.x, pn.y); };
     el.addEventListener('pointermove', aimAt, { signal }); el.addEventListener('pointerdown', aimAt, { signal });
     el.addEventListener('click', () => { if (hovered < 0 || fly) return;
@@ -790,7 +749,7 @@ export function shelf(el, items /* [{ color }] */, { onOpen } = {}) {
 }
 ```
 
-**Performa, mobile & reduced-motion:** budget: 0 byte model untuk versi primitive; ruangan detail (jam, tanaman, karpet) ±1–2 MB tekstur kalau difoto. Upload tekstur dibagi satu per frame (`renderer.initTexture` antri) supaya tidak jank. Konten live di halaman buku hanya jalan (`setRunning(true)`) saat di-hover/dibaca. Mode lite di HP. Reduced-motion: parallax kamera, ayunan lampu, dan pendulum "angin" kursor mati; terbang jadi instan. Aksesibilitas: canvas `role="img"` + `aria-label`, plus daftar item DOM yang terlihat saat fokus (untuk screen reader dan SEO). Tanpa WebGL: daftar item DOM itu sendiri jadi tampilan utama.
+**Performa, mobile & reduced-motion:** budget: 0 byte model untuk versi primitive; ruangan detail (jam, tanaman, karpet) ±1–2 MB tekstur kalau difoto. Upload tekstur dibagi satu per frame (`renderer.initTexture` antri) supaya tidak jank. Konten live di halaman buku hanya jalan (`setRunning(true)`) saat di-hover/dibaca. Mode lite (`pointer: coarse` atau < 760 px): shadow 1024, debu 90 (bukan 240), tanpa grain, konten live tidak di-preload. Reduced-motion: parallax kamera, ayunan lampu, dan pendulum "angin" kursor mati; terbang jadi instan. Aksesibilitas: canvas `role="img"` + `aria-label`, plus daftar item DOM yang terlihat saat fokus (untuk screen reader dan SEO). Tanpa WebGL: daftar item DOM itu sendiri jadi tampilan utama.
 
 **Jebakan:**
 - R06a: GSAP + Observer di-load tapi rak tidak memakainya; modul sound lengkap ada tapi tombolnya di-hidden oleh flag (bobot sia-sia).
@@ -799,8 +758,7 @@ export function shelf(el, items /* [{ color }] */, { onOpen } = {}) {
 
 ### `velocity-bend-media` — Kartu media yang melengkung/molor oleh kecepatan
 
-**Sumber:** R06a, R08 · **Mode:** A · **Tingkat berat:** sedang
-
+**Sumber:** R06a, R08 · **Mode:** A · **Tingkat berat:** sedang\
 **Kapan dipakai:** slider/reel foto atau video proyek. Saat digeser cepat, kartu melengkung ke arah kamera, molor searah gerak, tepinya tertinggal, dan warnanya terpecah. Saat berhenti, snap ke satu item. Lebih halus dari `skewX` biasa karena deformasinya per-vertex.
 
 **Parameter:**
@@ -810,15 +768,13 @@ export function shelf(el, items /* [{ color }] */, { onOpen } = {}) {
 | input (R08) | wheel `deltaY/200 × 0.015`, clamp ±0.9 (touch ±2.9); friction 0.9/frame (mobile 0.955) | friction 0.88–0.96 | impuls + luncuran |
 | snap | target `round(pos + vel·9)` saat \|vel\| < 0.005; spring 0.05, damping 0.5/frame | — | proyeksi titik berhenti |
 | bend | `clamp(\|vel\|·9·1.8, 0, 2.5)` unit world (R08) ≈ 0.32 × lebar kartu, smoothing 0.25/frame | 0.2–0.4 × lebar | lengkung ke kamera |
-| stretch / trail (R06a) | `1 + \|speed\|·0.0045`; tepi `speed·1.5·edge²` px; maks speed 90 px/frame | 0.003–0.006; 1–2 px | molor + tepi tertinggal berbentuk busur |
-| RGB split | `speed·0.0006` UV (reel), 0.0016 (cursor wake) | — | — |
+| stretch / trail / split (R06a) | `1 + \|speed\|·0.0045`; tepi `speed·1.5·edge²` px; RGB split `speed·0.0006` UV (cursor wake 0.0016); maks 90 px/frame | 0.003–0.006; 1–2 px | molor, tepi tertinggal berbentuk busur, warna terpecah |
 | kartu | SDF radius 24 px + AA `fwidth`; non-aktif dim 0.55; plane 32×32 segmen | segmen 24–32 | sudut bulat tanpa mask |
 
 **Resep:**
 1. Stage px: kamera perspektif berjarak `h/2 / tan(fov/2)`, jadi 1 unit = 1 px di z = 0. Satu `PlaneGeometry(1, 1, 32, 32)` dipakai bersama, ukuran lewat `scale` + `uSize`.
-2. Shader kartu (R06a): rounded-rect SDF + RGB split 3-tap + `uDim`; vertex: stretch + trail (R06a) + bend sinus ganda (R08).
-3. Fisika (R08): mode bebas (friction) → begitu pelan, spring ke item terdekat dari titik berhenti yang diproyeksikan. Touch: drag → `target -= dy / gap`; keyboard panah ±1.
-4. Video: hanya item aktif + berikutnya yang `play()`, sisanya pause dengan `preload` bertahap; skip render saat idle (`requestVideoFrameCallback` untuk tahu ada frame baru).
+2. Shader kartu (R06a): rounded-rect SDF + RGB split 3-tap + `uDim`; vertex: stretch + trail (R06a) + bend sinus ganda (R08). Fisika (R08): mode bebas (friction) → begitu pelan, spring ke item terdekat dari titik berhenti yang diproyeksikan. Touch: drag → `target -= dy / gap`; keyboard panah ±1.
+3. Video: hanya item aktif + berikutnya yang `play()`, sisanya pause dengan `preload` bertahap; skip render saat idle (`requestVideoFrameCallback` untuk tahu ada frame baru).
 
 ```js
 import { glSection } from './gl-stage.js';
@@ -844,8 +800,7 @@ export function bendSlider(el, textures /* VideoTexture | CanvasTexture */) {
     el.addEventListener('wheel', (e) => { e.preventDefault(); vel = clamp(vel + (e.deltaY / 200) * 0.015, -0.9, 0.9); free = true; }, { passive: false, signal });
     return {
       onResize(w, h) { W = w; H = h; camera.position.z = h / 2 / Math.tan((camera.fov * Math.PI) / 360); camera.far = camera.position.z * 3; camera.updateProjectionMatrix(); },
-      update(dt) {
-        const f = dt * 60;
+      update(dt) { const f = dt * 60;
         if (free) { vel *= fric ** f; pos += vel * f; target = Math.round(pos + vel * 9); if (Math.abs(vel) < 0.005) free = false; }
         else { vel += (target - pos) * 0.05 * f; vel *= 0.5 ** f; pos += vel * f; }      // spring snap
         if (reduced) { pos = target; vel = 0; }
@@ -867,21 +822,18 @@ export function bendSlider(el, textures /* VideoTexture | CanvasTexture */) {
 **Jebakan:**
 - R06a (5 sample): tidak ada handling `prefers-reduced-motion` sama sekali, dan follow 0.10–0.22 per frame tanpa koreksi dt.
 - Wheel listener harus `passive: false` + `preventDefault`, tapi hanya di dalam section. Kalau dipasang di `window`, halaman tidak bisa di-scroll.
-- Render terus saat diam = baterai habis. Return `false` dari `update` kalau `vel`, `bend`, dan frame video tidak berubah.
 
 ### `cylinder-label-spin` — Label berputar di silinder, satu context untuk banyak canvas
 
-**Sumber:** R07 · **Mode:** A+B · **Tingkat berat:** sedang
-
+**Sumber:** R07 · **Mode:** A+B · **Tingkat berat:** sedang\
 **Kapan dipakai:** deretan produk kemasan silinder (toples, kaleng, botol) di carousel DOM, di mana labelnya harus bisa berputar mengelilingi kemasan saat hover, saat di-scrub, atau saat carousel digeser cepat. Badan kemasan tetap `<img>` biasa; hanya label yang 3D.
 
 **Parameter:**
 
 | nama | default | rentang wajar | efeknya |
 |---|---|---|---|
-| geometri | `LatheGeometry` profil lurus 17 titik, 128 segmen; lebar 0.885, miring 3° | 64–128 segmen, 2–5° | silinder label |
+| geometri | `LatheGeometry` profil lurus 17 titik, 128 segmen; lebar 0.885, miring 3°; ambient 0.89 + spot 0.58 dari kiri | 64–128 segmen, 2–5° | silinder label |
 | `gap` seam | 0.09 | 0.05–0.12 | celah label di-`discard` supaya sambungan tidak terlihat |
-| cahaya | ambient 0.89, spot 0.58 dari kiri | — | — |
 | hover spin | 1 putaran dalam 2 s, `inOutQuint`, setelah diam 260 ms | 1.5–2.5 s | — |
 | twist / cursor | `−clamp(v/2400)·38°`; cursor ±30°, falloff Gaussian `(1.6·w)²` | 20–40° | label "terpelintir" saat carousel cepat |
 | lazy / budget | Three di-import 1000 ms setelah mount; DPR ≤ 3 **dan** total piksel semua canvas label ≤ 12 MP | — | — |
@@ -895,10 +847,8 @@ export function bendSlider(el, textures /* VideoTexture | CanvasTexture */) {
 // Satu renderer offscreen dipakai bergantian untuk semua label
 export async function createLabelPainter({ w = 256, h = 410, gap = 0.09, tiltDeg = 3 } = {}) {
   const THREE = await import('three');
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(1); renderer.setSize(w, h, false);
-  const scene = new THREE.Scene(), ar = h / w, cam = new THREE.OrthographicCamera(-0.5, 0.5, 0.5 * ar, -0.5 * ar, 0.1, 10);
-  cam.position.z = 3;
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); renderer.setPixelRatio(1); renderer.setSize(w, h, false);
+  const scene = new THREE.Scene(), ar = h / w, cam = new THREE.OrthographicCamera(-0.5, 0.5, 0.5 * ar, -0.5 * ar, 0.1, 10); cam.position.z = 3;
   const spot = new THREE.SpotLight(0xffffff, 6, 0, 0.8, 1); spot.position.set(-2, 0.5, 2.5);
   scene.add(new THREE.AmbientLight(0xffffff, 0.89), spot);
   const prof = Array.from({ length: 17 }, (_, i) => new THREE.Vector2(0.4425, (i / 16 - 0.5) * 0.6 * ar));   // dinding lurus
@@ -933,12 +883,10 @@ export async function createLabelPainter({ w = 256, h = 410, gap = 0.09, tiltDeg
 **Jebakan:**
 - R07: rAF jalan terus walau carousel diam, `getBoundingClientRect()` section dibaca tiap frame, dan reduced-motion hanya dihormati sebagian.
 - Mengganti `mat.map` dari `null` ke tekstur memicu recompile shader. Pasang tekstur placeholder sejak awal (seperti di snippet).
-- Satu `<canvas>` WebGL per item = cepat menabrak batas context browser. Itu alasan utama pola ini ada.
 
 ### `morphing-point-cloud` — Point cloud yang di-scan lalu morph
 
-**Sumber:** R15, R02 · **Mode:** A+B · **Tingkat berat:** berat (FBO 100k) / sedang (atribut 20–40k)
-
+**Sumber:** R15, R02 · **Mode:** A+B · **Tingkat berat:** berat (FBO 100k) / sedang (atribut 20–40k)\
 **Kapan dipakai:** section teknologi/data: titik-titik terrain muncul lewat gelombang scan radial, lalu menyusun ulang dirinya menjadi bola (atau logo/teks), lalu kolaps. Scroll hanya memilih **mode**; transisinya time-based supaya selalu selesai dengan rapi.
 
 **Parameter:**
@@ -949,15 +897,13 @@ export async function createLabelPainter({ w = 256, h = 410, gap = 0.09, tiltDeg
 | morph | stagger 0.35 (`fract(seed·7.31)·stagger`), 1.6 s smootherstep `t³(6t²−15t+10)` | stagger 0.2–0.5, 1–2 s | cloud menyusun ulang dirinya, bukan cross-fade |
 | swirl | terrain 0.01, bola 0.44, ×(1 + 4.8·x(1−x)) saat transit | — | mengembang di tengah transisi |
 | titik | `size·focalPx·(0.55 + seed·0.9)/−z`, cap 14 px; opacity 0.54; `#8F979B` | cap 8–16 | ukuran konsisten walau FOV/DPR berubah |
-| fade in / out / collapse | 1.05 s / 0.45 s / 0.85 s | — | — |
 | scan radial | 5 unit/s × 1.5, edge 3 (skala R15); snippet: 1.5 unit/s, edge 0.4 (terrain radius 1) | — | titik muncul sebagai gelombang dari origin |
-| segmen scroll | `floor(p·3)`, hysteresis 0.005, fase minimal 1 s | — | — |
+| mode | segmen `floor(p·3)`, hysteresis 0.005, fase minimal 1 s; fade in / out / collapse 1.05 / 0.45 / 0.85 s | — | scroll memilih mode, bukan menyetir uniform |
 
 **Resep:**
 1. Dua bentuk dengan jumlah titik sama: terrain prosedural (grid acak + noise height) dan shell bola 0.85–1. Bentuk dari mesh: sampling area-weighted (CDF luas segitiga + barycentric acak), normalisasi ke radius 1.
 2. Versi ringan (snippet): `position` = bentuk A, `aTarget` = bentuk B, `aSeed`; morph + drift `sin` di vertex shader. Versi berat (R15): pass simulasi ke RT 320² (`FloatType` kalau `EXT_color_buffer_float` ada, lalu `HalfFloatType`, kalau gagal cloud dimatikan) dengan curl noise ternormalisasi.
-3. Mode dipilih dari segmen scroll (hysteresis) atau tab; uniform bergerak dengan rate tetap lalu di-ease. Untuk mesh terrain, scan yang sama dipakai di overlay dot-grid triplanar (`fract(worldPos.xz·33)`, radius 0.02, hanya permukaan menghadap atas) + kontur `fract(y/spacing)` yang merapat 1.5 → 0.22.
-4. Varian R02 (partikel jatuh): `fract(seed + time·rate)` = posisi sepanjang Bézier A→C→B di vertex shader; CPU cukup update 3 titik kontrol + opacity.
+3. Mode dipilih dari segmen scroll (hysteresis) atau tab; uniform bergerak dengan rate tetap lalu di-ease. Varian R02 (partikel jatuh): `fract(seed + time·rate)` = posisi sepanjang Bézier A→C→B di vertex shader. Untuk mesh terrain, scan yang sama dipakai di overlay dot-grid triplanar (`fract(worldPos.xz·33)`, radius 0.02, hanya permukaan menghadap atas) + kontur `fract(y/spacing)` yang merapat 1.5 → 0.22.
 
 ```js
 import { glSection } from './gl-stage.js';
@@ -1011,8 +957,7 @@ export function pointCloud(el, { n = 40000, getMode = () => 'terrain' } = {}) { 
 
 ### `product-configurator-3d` — Configurator dengan kontrak nama mesh
 
-**Sumber:** R17 (+ R01 untuk swap) · **Mode:** A+B · **Tingkat berat:** sedang
-
+**Sumber:** R17 (+ R01 untuk swap) · **Mode:** A+B · **Tingkat berat:** sedang\
 **Kapan dipakai:** produk yang bisa dikustom (warna per zona, add-on furnitur, varian ukuran). Mode A: satu section sticky 100vh dengan canvas + panel kanan (bottom sheet di mobile). Mode B: halaman `/configure` dengan wizard penuh + summary + harga.
 
 **Parameter:**
@@ -1029,8 +974,7 @@ export function pointCloud(el, { n = 40000, getMode = () => 'terrain' } = {}) { 
 **Resep:**
 1. Bangun produk dari primitive dengan **nama mesh** sesuai kontrak (atau minta 3D artist memakai nama yang sama di GLB); capacity/ukuran jadi parameter builder, bukan file berbeda. Satu traverse mengelompokkan mesh per zona/add-on/kaca, dan UI dibangkitkan dari hasilnya.
 2. Satu `state` + satu `apply(state)` sebagai satu-satunya jalan mengubah scene. Simpan ke URL hash supaya bisa di-share; summary/harga membaca state, bukan DOM. Share **satu material** per zona supaya part terkait (kursi ikut interior) berubah dengan satu `color.set()`.
-3. Kamera terbang ke view preset (Front / Interior / Top), orbit dimatikan selama terbang. Render **on demand**: hanya saat `controls.update()` melapor perubahan, tween jalan, atau state berubah.
-4. Snapshot: pindah ke view frontal, `render()`, langsung `canvas.toDataURL()` di task yang sama, kembalikan kamera.
+3. Kamera terbang ke view preset (Front / Interior / Top), orbit dimatikan selama terbang. Render **on demand**: hanya saat `controls.update()` melapor perubahan, tween jalan, atau state berubah. Snapshot: pindah ke view frontal, `render()`, langsung `canvas.toDataURL()` di task yang sama, kembalikan kamera.
 
 ```js
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';

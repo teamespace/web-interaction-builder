@@ -1,6 +1,6 @@
 # Index pola
 
-Total 72 pola dari 17 referensi (R01–R17).
+Total 78 pola dari 17 referensi (R01–R17).
 
 Dibuat otomatis oleh `scripts/build_index.py`. Jangan edit manual; edit file keluarganya lalu jalankan ulang script.
 
@@ -44,7 +44,7 @@ cursor, drag, lempar, physics, video scrub. 18 pola.
 | `cursor-scrub-video` | Video yang di-scrub kursor | A | Video | R04 |
 | `cursor-wake-dwell` | Riak di belakang kursor + diam untuk membuka | A | CSS (R06a: WebGL untuk RGB split) | R06 |
 | `infinite-drag-canvas` | Dinding kartu tanpa ujung | A+B | CSS | R06 |
-| `wheel-drag-shelf` | Rak objek tanpa ujung (wheel + drag + spring) | A+B | CSS (R07 label 3D: WebGL opsional) | R06, R07, R11 |
+| `wheel-drag-shelf` | Rak objek tanpa ujung (wheel + drag + spring) | A+B | CSS (label 3D R07: WebGL opsional) | R06, R07, R11 |
 | `drag-rotate` | Putar objek dengan drag lurus atau gerakan melingkar | A | CSS / Canvas2D (3D model kalau objeknya GLB) | R01, R06, R09, R11 |
 | `throwable-cards` | Kartu yang bisa diangkat dan dilempar | A (B sebagai landing "meja kerja") | CSS (R06b: Canvas2D) | R06, R13 |
 | `draw-to-reveal-trail` | Menggambar jalur yang memunculkan foto | A (B sebagai landing instalasi) | Canvas2D/SVG | R06 |
@@ -115,4 +115,13 @@ page transition, morph, wipe, theme switch. 12 pola.
 
 ## Generative (`generative.md`)
 
-_Belum ada._
+dither, pixel, garis gambar tangan. 6 pola.
+
+| Pola | Judul | Mode | Berat | Sumber |
+| --- | --- | --- | --- | --- |
+| `pixel-sky-dither` | Langit pixel 5 tone | A+B | Canvas2D/SVG | R09 |
+| `dissolve-to-cube` | Langit larut jadi kubus | A | Canvas2D/SVG | R09 |
+| `bayer-dither-stamp` | Foto jadi stamp pixel | A+B | Canvas2D/SVG | R09 |
+| `ascii-glyph-ramp` | ASCII asli dengan ramp karakter | A+B | Canvas2D/SVG | R09 |
+| `hand-drawn-liveliness` | Garis tangan yang hidup | A+B | Canvas2D/SVG | R06, R08 |
+| `pixelate-swap` | Ganti gambar lewat blok pixel | A+B | Canvas2D/SVG | R14 |

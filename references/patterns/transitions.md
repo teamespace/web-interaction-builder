@@ -85,7 +85,7 @@ Aturan umum: setiap transisi punya **lock** (abaikan klik/navigasi kedua selama 
 **Resep:**
 1. Markup global (persist antar halaman): `<div data-veil aria-hidden="true">` (fixed, inset 0, `z-index: 1200`, warna `--paper`, `visibility: hidden`) dan `<div data-scrim>` (fixed, hitam, opacity 0, di bawah veil). Header di-`z-index` di atas veil supaya tetap terlihat.
 2. Saat navigasi dimulai: `cover()` dan fetch halaman baru **paralel** (`Promise.all`). Di Astro bungkus `e.loader` pada `astro:before-preparation`; di Barba/Swup pakai hook `leave`.
-3. Swap DOM. Tunggu `document.fonts.ready` dan modul berat halaman tujuan (maks `maxWaitPerAsset`). Kalau lewat 500ms belum siap, tampilkan loader.
+3. Swap DOM. Tunggu `document.fonts.ready` dan modul berat halaman tujuan (maks 8s). Kalau lewat 500ms belum siap, tampilkan loader.
 4. `reveal()` memancarkan `veil:reveal` dengan `wipeDur`. Modul lain (text reveal, objek 3D) mendengarkan event itu dan mulai di 40–50% durasi. `main` diberi `inert` selama tertutup; setelah reveal, fokus ke `h1` (beri `tabindex="-1"`).
 5. **Varian flash (R11 "EXPOSED")**: alih-alih wipe, cover = teks menyala (`text-shadow` membesar) lalu overlay krem full-screen fade-in dengan spring kritis ω 6.5 (13 kalau user baru scroll cepat), swap di puncak putih, reveal = crossfade ke scene berikut.
 
@@ -176,7 +176,7 @@ Contoh named element R13 (list ↔ detail lab): masuk 0.42s expo-out dari `trans
 </script>
 <script>
   addEventListener('pagereveal', (e) => {          // klasik, di <head>
-    if (e.viewTransition && navigation?.activation?.navigationType === 'traverse') e.viewTransition.types.add('back');
+    if (e.viewTransition && window.navigation?.activation?.navigationType === 'traverse') e.viewTransition.types.add('back');
   });
   if (!HTMLScriptElement.supports?.('speculationrules') && !navigator.connection?.saveData) {
     let tid;
@@ -195,8 +195,7 @@ Contoh named element R13 (list ↔ detail lab): masuk 0.42s expo-out dari `trans
 **Jebakan:**
 - Dukungan cross-document: Chromium 126+ dan Safari 18.2+; Firefox belum pasti per catatan R13. Tidak perlu polyfill, cukup degrade.
 - `view-transition-name` harus unik per halaman: dua elemen bernama sama = seluruh transisi batal. `traverse` juga mencakup "forward"; kalau arah penting, bandingkan indeks entry history.
-- Prerender semua `/*` ikut menjalankan halaman seperti logout atau tambah-keranjang via GET. Kecualikan URL yang punya efek samping.
-- Overlay VT bisa memblok klik selama animasi: `::view-transition { pointer-events: none; }` (R13).
+- Prerender semua `/*` ikut menjalankan halaman seperti logout atau tambah-keranjang via GET. Kecualikan URL yang punya efek samping. Overlay VT bisa memblok klik selama animasi: `::view-transition { pointer-events: none; }` (R13).
 
 ### `flip-morph` — Objek ke modal & layout toggle
 
@@ -322,8 +321,7 @@ export function layoutMorph(desk, LAYOUTS, { gain = 0.0008, follow = 0.07 } = {}
 
 **Jebakan:**
 - `preventDefault` pada wheel membajak scroll. R08 aman karena hero-nya tidak punya scroll native. Di halaman yang bisa di-scroll, ganti driver jadi `stickyProgress` section pinned (`target = p × (K − 1)`).
-- Lerp per frame (0.07) tanpa dt jalan 2× lebih cepat di 120Hz. `followToLambda` + `exp(−λ·dt)` menormalkan ini.
-- Item yang sedang dilempar (exit) harus dikecualikan dari loop, kalau tidak loop menimpa posisinya tiap frame.
+- Lerp per frame (0.07) tanpa dt jalan 2× lebih cepat di 120Hz. `followToLambda` + `exp(−λ·dt)` menormalkan ini. Item yang sedang dilempar (exit) harus dikecualikan dari loop, kalau tidak loop menimpa posisinya tiap frame.
 
 ### `svg-picker-lift` — Pilih item SVG, salinan terangkat
 
@@ -389,8 +387,7 @@ export function layoutMorph(desk, LAYOUTS, { gain = 0.0008, follow = 0.07 } = {}
 
 **Jebakan:**
 - Layer lifted tanpa `pointer-events: none` menutupi item tetangga (bug R05, salinan scale 1.3).
-- Arrow key langsung memilih + panel `aria-live` = pembaca layar membacakan tiap langkah. Kalau panel panjang, pertimbangkan pilih hanya saat Enter.
-- Target sentuh: item kecil (gigi depan bawah R05 ±20px di HP) di bawah 44px, dan ring fokus 0.7 unit sulit terlihat. Tebalkan stroke `.hit` di mobile dan saat `:focus-visible`.
+- Arrow key langsung memilih + panel `aria-live` = pembaca layar membacakan tiap langkah. Kalau panel panjang, pertimbangkan pilih hanya saat Enter. Target sentuh: item kecil (gigi depan bawah R05 ±20px di HP) di bawah 44px, dan ring fokus 0.7 unit sulit terlihat. Tebalkan stroke `.hit` di mobile dan saat `:focus-visible`.
 
 ### `page-zoom-intro` — Halaman mini zoom jadi penuh
 
@@ -443,8 +440,7 @@ export async function pageZoomIntro({ curtain, letters, navbar, page, startScale
 
 **Jebakan:**
 - `transform` di `.page` membuat elemen `position: fixed` di dalamnya ikut ter-scale dan menempel ke `.page`, bukan viewport. Taruh header fixed di luar `.page`.
-- Lupa `ScrollTrigger.refresh()` → semua trigger di bawah meleset sebesar perbedaan layout saat scale.
-- Gambar besar di dalam halaman mini tetap di-decode penuh. Itu memang perlu (halaman langsung tampil), tapi beri `fetchpriority` hanya ke gambar di first viewport.
+- Lupa `ScrollTrigger.refresh()` → semua trigger di bawah meleset sebesar perbedaan layout saat scale. Gambar besar di dalam halaman mini tetap di-decode penuh. Itu memang perlu (halaman langsung tampil), tapi beri `fetchpriority` hanya ke gambar di first viewport.
 
 ### `circle-wipe` — Lingkaran membesar menutup layar
 
@@ -501,8 +497,7 @@ export function clickWipe(layer, origin, open = true) {
 
 **Jebakan:**
 - `circle(75%)` dari origin di pojok tidak menutup layar. Selalu hitung radius ke sudut terjauh dalam px.
-- Origin ikut scroll, jadi rect-nya memang harus dibaca tiap frame di varian scroll (jangan di-cache).
-- `clip-path` juga memotong hit-testing, tapi layer yang ter-clip ke 0 tetap ada di accessibility tree. Beri `inert` saat tertutup.
+- Origin ikut scroll, jadi rect-nya memang harus dibaca tiap frame di varian scroll (jangan di-cache). `clip-path` juga memotong hit-testing, tapi layer yang ter-clip ke 0 tetap ada di accessibility tree. Beri `inert` saat tertutup.
 
 ### `clip-path-shape-morph` — Morph bentuk lewat polygon
 
@@ -563,8 +558,7 @@ export function morphTo(el, target, { dur = 0.55 } = {}) {
 
 **Jebakan:**
 - Titik awal / arah berbeda antar shape → morph terpelintir dan menyilang. Normalisasi semua shape ke "mulai di atas, searah jarum jam".
-- Sudut tajam hilang kalau titik resample tidak jatuh tepat di sudut. Naikkan N atau sisipkan sudut sebagai titik wajib.
-- `clip-path` string 72 titik ditulis per frame cukup ringan, tapi jangan morph puluhan elemen sekaligus.
+- Sudut tajam hilang kalau titik resample tidak jatuh tepat di sudut. Naikkan N atau sisipkan sudut sebagai titik wajib. `clip-path` string 72 titik ditulis per frame cukup ringan, tapi jangan morph puluhan elemen sekaligus.
 
 ### `print-curl-transition` — Section jadi lembar foto melengkung
 
@@ -628,8 +622,7 @@ export function updateSheet(mesh, P, v, dt, { endScale = 0.34, rise = 0.82, pitc
 
 **Jebakan:**
 - Notch-as-trigger: trackpad mengirim deltaY kecil beruntun, mouse wheel mengirim 100 per notch. Akumulasi dalam jendela 250ms, dan abaikan `ctrlKey` (pinch-zoom trackpad).
-- Kecepatan dari wheel mentah sangat "berduri": low-pass (λ 13) wajib, kalau tidak kertas bergetar. Segmen < 32 terlihat patah saat melengkung kuat.
-- Teks kecil di texture jadi blur saat lembar mengecil ke 0.34. Gunakan mipmap + anisotropy.
+- Kecepatan dari wheel mentah sangat "berduri": low-pass (λ 13) wajib, kalau tidak kertas bergetar. Segmen < 32 terlihat patah saat melengkung kuat. Teks kecil di texture jadi blur saat lembar mengecil ke 0.34. Gunakan mipmap + anisotropy.
 
 ### `theme-token-switch` — Ganti tema lewat token
 
@@ -743,8 +736,7 @@ export function updateSheet(mesh, P, v, dt, { endScale = 0.34, rise = 0.82, pitc
 
 **Jebakan:**
 - Garis tipis (hairline) antar strip saat semua strip penuh, akibat anti-aliasing. Overlap 0.002 + lepas clip di p = 1.
-- `clipPathUnits="objectBoundingBox"` memakai kotak elemen target; padding/border ikut. Pasang clip di elemen yang ukurannya = area visual.
-- Satu `<clipPath id>` hanya untuk satu target. Untuk beberapa blok, bangkitkan id unik per blok.
+- `clipPathUnits="objectBoundingBox"` memakai kotak elemen target; padding/border ikut. Pasang clip di elemen yang ukurannya = area visual. Satu `<clipPath id>` hanya untuk satu target. Untuk beberapa blok, bangkitkan id unik per blok.
 
 ### `staggered-content-switcher` — Tab dengan wipe bertahap
 
@@ -789,6 +781,7 @@ export function colorSweep(chars, { win = 8 } = {}) {
     });
     if (t === 1) off();
   });
+  return off;                                                    // simpan, panggil sebelum sapuan baru
 }
 
 export function showPanel(panel) {
