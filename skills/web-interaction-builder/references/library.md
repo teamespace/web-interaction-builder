@@ -15,7 +15,7 @@ Sumber: R01–R12 dari tim, R13–R17 dipilih dari Awwwards (Site of the Day + D
 | R07 | [Agrumea Farm](https://www.agrumeafarm.it/en) | "Library buku" = rak toples hero | `wheel-drag-shelf` | rAF + spring per toples, label via 1 WebGL context bersama | 1 section | `R07-agrumea-farm.md` |
 | R08 | [Josh Kern](https://webdesign.kernjosh.com/) | (dipilih Claude) | `velocity-bend-media`, layout morph, easter egg | GSAP Observer/Flip, Three lazy; reduced-motion terbaik | Banyak | `R08-josh-kern.md` |
 | R09 | [Andreas Vision](https://andreas.vision/) | Animasi "ASCII" | `pixel-sky-dither` | Canvas 2D grid 22px 5 tone, Bayer dither | Banyak | `R09-andreas-vision.md` |
-| R10 | [Fragment](https://www.fragment.im/) | Scroll animation | `scroll-choreographed-backdrop`, sticky stacking cards | Spline + Framer | Banyak | `R10-fragment.md` |
+| R10 | [Fragment](https://www.fragment.im/) | Scroll animation | `scroll-choreographed-backdrop`, `sticky-card-stack` | Spline + Framer | Banyak | `R10-fragment.md` |
 | R11 | [Kinoria Studio](https://kinoria.studio/) | Animasi scroll | `chapter-scroll-engine` | Tanpa native scroll, three.js + HTML, reduced-motion baik | Banyak | `R11-kinoria-studio.md` |
 | R12 | [Palmo](https://www.palmo.co.in/) | 3D saat scroll | `scroll-3d-product-story` + burst | R3F + GSAP ScrollTrigger scrub, burst berbasis waktu | Banyak | `R12-palmo.md` |
 | R13 | [Carter Ogunsola](https://carterogunsola.com) | Page transition, lanyard | `route-veil-transition`, `mpa-view-transition`, `verlet-rope` | Astro ClientRouter + GSAP veil, Verlet 3D | Banyak (multi-halaman) | `R13-carter-ogunsola.md` |

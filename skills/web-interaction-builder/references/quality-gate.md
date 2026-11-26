@@ -3,7 +3,7 @@
 Checklist wajib sebelum hasil diserahkan. Setiap poin di sini muncul karena ada referensi yang gagal di poin itu.
 
 ## 1. Reduced-motion
-- [ ] `prefers-reduced-motion: reduce` menghasilkan state statis yang rapi dan tetap bermakna (konten terlihat, layout tidak rusak), bukan halaman kosong atau animasi setengah jalan.
+- [ ] `prefers-reduced-motion: reduce` menghasilkan state statis yang rapi dan tetap bermakna (konten terlihat, layout tidak rusak), bukan halaman kosong atau animasi setengah jalan. Interaksi boleh tetap ada, tapi langsung lompat ke state akhir (mis. chip physics langsung diam).
 - [ ] Lenis tidak dinyalakan (`setupSmoothScroll` sudah menangani).
 - [ ] Section pinned panjang dipendekkan (CSS starter sudah menangani `.section--pinned`).
 - [ ] WebGL berat diganti poster/gambar statis.
@@ -17,7 +17,8 @@ Checklist wajib sebelum hasil diserahkan. Setiap poin di sini muncul karena ada 
 - [ ] Jangan suruh mobile download aset desktop yang tidak dipakai (R04 tetap download 15.8 MB di mobile).
 
 ## 3. Performa
-- [ ] Loop hanya jalan saat section terlihat (`defineSection` + IntersectionObserver). R04 dan R17 tidak pernah berhenti.
+- [ ] Loop hanya jalan saat section terlihat (`defineSection` + IntersectionObserver). R04 dan R17 tidak pernah berhenti. Animasi CSS yang berulang dan video juga dijeda lewat `onLeave` / dilanjutkan lewat `onEnter`.
+- [ ] Ukuran/posisi diukur ulang di `onResize` (dipanggil juga saat window resize, font dimuat, `load`), dengan transform dibersihkan dulu.
 - [ ] `devicePixelRatio` dibatasi (Canvas/WebGL: maks 1.5–2).
 - [ ] Semua smoothing pakai `dt` (`damp`, `spring.step(dt)`), bukan faktor per frame.
 - [ ] WebGL: geometry/material/texture/renderer di-dispose di `destroy()`; shader di-compile sebelum dipakai kalau scene besar (R11, R02).
@@ -26,7 +27,7 @@ Checklist wajib sebelum hasil diserahkan. Setiap poin di sini muncul karena ada 
 ### Budget aset (per halaman, setelah kompresi)
 | Jenis | Mode A | Mode B total |
 | --- | --- | --- |
-| JS (tanpa three) | ≤ 60 KB | ≤ 150 KB |
+| JS buatan sendiri + library kecil (gzip, tanpa three) | ≤ 60 KB | ≤ 150 KB |
 | three.js + addons | ≤ 180 KB gz | ≤ 180 KB gz |
 | Model GLB (Draco/Meshopt) | ≤ 2 MB | ≤ 5 MB |
 | Video scrub (all-intra) | ≤ 6 MB desktop, versi mobile lebih kecil | ≤ 12 MB |
@@ -34,7 +35,8 @@ Checklist wajib sebelum hasil diserahkan. Setiap poin di sini muncul karena ada 
 
 ## 4. Aksesibilitas
 - [ ] Konten penting tetap HTML (heading, paragraf, link), bukan hanya di canvas.
-- [ ] Teks yang di-split per huruf/kata tetap terbaca screen reader (`aria-label` di parent, span anak `aria-hidden="true"`).
+- [ ] Teks yang di-split per huruf/kata tetap terbaca screen reader: pakai `split.js` (kalimat utuh di `.sr-only`, versi visual `aria-hidden="true"`). `aria-label` hanya aman di heading, link, dan button, bukan di `<span>`/`<p>`.
+- [ ] Fokus keyboard tidak boleh mendarat di elemen yang tertutup (kartu bertumpuk, layer sticky): scroll ke elemen itu saat `focusin`.
 - [ ] Elemen interaktif bisa dijangkau keyboard, fokus terlihat (R05 dan R11 contoh yang baik).
 - [ ] Scroll tidak dibajak tanpa jalan keluar: kalau memakai chapter engine tanpa native scroll (R11), keyboard dan touch tetap bisa maju-mundur.
 

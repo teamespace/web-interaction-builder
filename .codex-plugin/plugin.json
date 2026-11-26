@@ -1,6 +1,6 @@
 {
   "name": "web-interaction-builder",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Build Awwwards-level web interactions from a reference: one interactive section or a full website. Distilled from 17 dissected sites into 78 patterns, a shared motion runtime and a quality gate.",
   "author": {
     "name": "teamespace",

@@ -1,13 +1,13 @@
 import { defineSection, damp, createSpring } from './motion-core.js';
 
-/* Semua angka yang enak di-tweak tim dikumpulkan di sini. */
+/* Every number worth tuning lives here. */
 const CONFIG = {
-  follow: 9,         // lambda damp: makin besar makin nempel ke cursor (6–14 wajar)
-  spring: { stiffness: 170, damping: 18 }, // scale saat hover
+  follow: 9,                                // damp lambda: higher sticks closer to the cursor (6–14 is sensible)
+  spring: { stiffness: 170, damping: 18 },  // scale on hover
   hoverScale: 1.6,
 };
 
-/* Contoh section: titik mengikuti cursor di desktop, diam rapi di touch/reduced-motion. */
+/* Example section: a dot follows the cursor on desktop and rests neatly on touch / reduced motion. */
 defineSection(document.querySelector('[data-section="demo"]'), (ctx) => {
   const dot = ctx.el.querySelector('.demo-dot');
   const scale = createSpring({ ...CONFIG.spring, value: 1 });

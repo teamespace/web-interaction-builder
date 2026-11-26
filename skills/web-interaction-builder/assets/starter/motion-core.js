@@ -1,13 +1,14 @@
 /* motion-core.js
- * Runtime kecil yang dipakai bersama oleh semua section interaksi.
- * Isinya pola yang muncul berulang di bedah R01–R17 (lihat references/library.md):
- * smoothing berbasis waktu, spring tulis tangan, kecepatan lempar 100 ms terakhir,
- * satu rAF loop, kontrak lifecycle + pause di luar layar, dan helper progress scroll.
- * Tanpa dependency. Kalau halaman pakai GSAP, panggil ticker.useGsap(gsap) supaya
- * semua jalan di satu clock dengan ScrollTrigger/Lenis.
+ * Small runtime shared by every interaction section.
+ * It holds the patterns that kept coming back in the R01–R17 dissections
+ * (see references/library.md): time-based smoothing, hand-written springs,
+ * fling velocity from the last 100 ms, one rAF loop, a lifecycle contract that
+ * pauses off screen, and scroll-progress helpers.
+ * No dependencies. If the page uses GSAP, call ticker.useGsap(gsap) so everything
+ * runs on one clock with ScrollTrigger and Lenis.
  */
 
-/* ---------- media query ---------- */
+/* ---------- media queries ---------- */
 export const mq = (q) => window.matchMedia(q);
 export const reducedMotion = () => mq('(prefers-reduced-motion: reduce)').matches;
 export const finePointer = () => mq('(hover: hover) and (pointer: fine)').matches;
@@ -19,18 +20,18 @@ export const lerp = (a, b, t) => a + (b - a) * t;
 export const mapRange = (v, inMin, inMax, outMin = 0, outMax = 1) =>
   outMin + (outMax - outMin) * clamp((v - inMin) / (inMax - inMin));
 
-/** Progress lokal 0..1 di dalam jendela [a, b] dari progress global p (pola "tabel range" R02/R03/R12). */
+/** Local 0..1 progress inside the window [a, b] of a global progress p (the "range table" pattern of R02/R03/R12). */
 export const range = (p, a, b) => clamp((p - a) / (b - a));
 export const smoothstep = (t) => t * t * (3 - 2 * t);
 
 /**
- * Smoothing yang tidak bergantung frame-rate. lambda kira-kira "per detik".
- * Contoh: x = damp(x, target, 8, dt). Jangan pakai lerp(x, target, 0.1) per frame:
- * itu jalan 2x lebih cepat di layar 120 Hz (bug yang ketemu di R06 Scroll Bend).
+ * Frame-rate independent smoothing. lambda is roughly "per second".
+ * Example: x = damp(x, target, 8, dt). Never use lerp(x, target, 0.1) per frame:
+ * that runs twice as fast on a 120 Hz screen (a real bug found in R06 Scroll Bend).
  */
 export const damp = (current, target, lambda, dt) => lerp(current, target, 1 - Math.exp(-lambda * dt));
 
-/** Konversi "follow factor per frame @60fps" dari referensi (mis. 0.12) ke lambda untuk damp(). */
+/** Convert a reference's "follow factor per frame @60fps" (e.g. 0.12) into a lambda for damp(). */
 export const followToLambda = (f) => -Math.log(1 - f) * 60;
 
 export const ease = {
@@ -46,8 +47,8 @@ export const ease = {
 
 /* ---------- spring ---------- */
 /**
- * Spring 1D (semi-implicit Euler, di-substep 120 Hz supaya stabil di stiffness tinggi).
- * Nilai yang sering dipakai referensi: stiffness 70–170, damping 9–26.
+ * 1D spring (semi-implicit Euler, sub-stepped at 120 Hz so it stays stable at high stiffness).
+ * Values the references use often: stiffness 70–170, damping 9–26.
  */
 export function createSpring({ stiffness = 170, damping = 26, mass = 1, value = 0 } = {}) {
   let x = value;
@@ -74,10 +75,10 @@ export function createSpring({ stiffness = 170, damping = 26, mass = 1, value = 
   };
 }
 
-/* ---------- pointer velocity (fling / lempar) ---------- */
+/* ---------- pointer velocity (fling / throw) ---------- */
 /**
- * Kecepatan pointer dari sampel windowMs terakhir. Kalau pointer sudah diam lebih dari
- * staleMs sebelum dilepas, kecepatan dianggap 0 (pola R06 Light Table / Infinite Grid).
+ * Pointer velocity from the samples of the last windowMs. If the pointer rested for
+ * more than staleMs before release, the velocity is 0 (the R06 Light Table / Infinite Grid rule).
  */
 export function createVelocityTracker({ windowMs = 100, staleMs = 80 } = {}) {
   const samples = [];
@@ -87,7 +88,7 @@ export function createVelocityTracker({ windowMs = 100, staleMs = 80 } = {}) {
       samples.push({ x, y, t });
       while (samples.length > 2 && t - samples[0].t > windowMs) samples.shift();
     },
-    /** px per detik */
+    /** px per second */
     get(now = performance.now()) {
       if (samples.length < 2) return { x: 0, y: 0 };
       const first = samples[0];
@@ -99,8 +100,8 @@ export function createVelocityTracker({ windowMs = 100, staleMs = 80 } = {}) {
   };
 }
 
-/* ---------- satu loop untuk semua ---------- */
-/** Callback menerima (dt detik, time detik). dt dibatasi 1/20 s supaya tidak loncat setelah tab kembali aktif. */
+/* ---------- one loop for everything ---------- */
+/** Callbacks receive (dt seconds, time seconds). dt is capped at 1/20 s so nothing jumps when a tab comes back. */
 export const ticker = (() => {
   const subs = new Set();
   let raf = 0;
@@ -122,7 +123,7 @@ export const ticker = (() => {
   return {
     add(fn) { subs.add(fn); start(); return () => subs.delete(fn); },
     remove(fn) { subs.delete(fn); },
-    /** Pindahkan clock ke gsap.ticker supaya sinkron dengan ScrollTrigger dan Lenis. */
+    /** Move the clock to gsap.ticker so it stays in sync with ScrollTrigger and Lenis. */
     useGsap(gsap) {
       if (gsapRef) return;
       gsapRef = gsap;
@@ -135,8 +136,8 @@ export const ticker = (() => {
 
 /* ---------- scroll progress ---------- */
 /**
- * Untuk section tinggi (mis. 400vh) yang isinya position: sticky.
- * 0 saat top section menyentuh top viewport, 1 saat bottom section menyentuh bottom viewport.
+ * For a tall section (e.g. 400vh) whose content is position: sticky.
+ * 0 when the section top meets the viewport top, 1 when the section bottom meets the viewport bottom.
  */
 export function stickyProgress(el) {
   const r = el.getBoundingClientRect();
@@ -144,14 +145,14 @@ export function stickyProgress(el) {
   return total > 0 ? clamp(-r.top / total) : 0;
 }
 
-/** 0 saat top elemen masuk dari bawah viewport, 1 saat bottom elemen keluar di atas viewport. */
+/** 0 when the element's top enters at the bottom of the viewport, 1 when its bottom leaves at the top. */
 export function passProgress(el) {
   const r = el.getBoundingClientRect();
   return clamp((window.innerHeight - r.top) / (window.innerHeight + r.height));
 }
 
 /* ---------- smooth scroll ---------- */
-/** Lenis opsional. Tidak dinyalakan saat reduced-motion (pelajaran R08/R09). */
+/** Optional Lenis. Not started under reduced motion (lesson from R08/R09). */
 export function setupSmoothScroll({ Lenis, gsap, ScrollTrigger, lerp: l = 0.1 } = {}) {
   if (!Lenis || reducedMotion()) return null;
   const lenis = new Lenis({ lerp: l });
@@ -165,15 +166,19 @@ export function setupSmoothScroll({ Lenis, gsap, ScrollTrigger, lerp: l = 0.1 } 
   return lenis;
 }
 
-/* ---------- kontrak lifecycle section ---------- */
+/* ---------- section lifecycle contract ---------- */
 /**
- * Kontrak dari R06 Interaction Library: setup → jalan hanya saat terlihat → destroy.
+ * The contract from R06 Interaction Library: setup → run only while visible → destroy.
  *
- * setup(ctx) dipanggil sekali dan mengembalikan objek opsional:
- *   update(dt, time)  dipanggil tiap frame selama section terlihat
- *   onResize()        dipanggil saat ukuran section berubah
- *   renderStatic()    state akhir yang rapi untuk reduced-motion (kalau ada, update tidak dijalankan)
- *   destroy()         bersih-bersih listener/WebGL
+ * setup(ctx) runs once and may return:
+ *   update(dt, time)  called every frame while the section is near the viewport
+ *   onEnter()         section came into view (e.g. resume CSS loops, video)
+ *   onLeave()         section left the view (e.g. pause CSS loops, video)
+ *   onResize()        layout may have changed: section resized, window resized, fonts or images loaded.
+ *                     Re-measure here, with transforms cleared (see sticky-card-stack).
+ *   renderStatic()    tidy end state for reduced motion; if present, update() is not run.
+ *                     The section may stay interactive (clicks can jump straight to end states).
+ *   destroy()         remove listeners, dispose WebGL
  *
  * ctx = { el, reduced, fine, small }
  */
@@ -185,19 +190,35 @@ export function defineSection(el, setup, { rootMargin = '15% 0px' } = {}) {
 
   let off = null;
   const io = new IntersectionObserver(([entry]) => {
-    if (!animate || !api.update) return;
-    if (entry.isIntersecting && !off) off = ticker.add(api.update);
-    else if (!entry.isIntersecting && off) { off(); off = null; }
+    if (entry.isIntersecting) {
+      if (api.onEnter) api.onEnter();
+      if (animate && api.update && !off) off = ticker.add(api.update);
+    } else {
+      if (api.onLeave) api.onLeave();
+      if (off) { off(); off = null; }
+    }
   }, { rootMargin });
   io.observe(el);
 
-  const ro = api.onResize ? new ResizeObserver(() => api.onResize()) : null;
-  if (ro) ro.observe(el);
+  // Layout can change without the section changing size (fonts, images, content above it),
+  // so onResize also listens to window resize, font loading and page load.
+  let ro = null;
+  let raf = 0;
+  const relayout = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => api.onResize()); };
+  if (api.onResize) {
+    ro = new ResizeObserver(relayout);
+    ro.observe(el);
+    window.addEventListener('resize', relayout);
+    window.addEventListener('load', relayout, { once: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+    relayout();
+  }
 
   return {
     destroy() {
       io.disconnect();
-      if (ro) ro.disconnect();
+      if (ro) { ro.disconnect(); window.removeEventListener('resize', relayout); }
+      cancelAnimationFrame(raf);
       if (off) off();
       if (api.destroy) api.destroy();
     },

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,15 +7,15 @@
   <link rel="stylesheet" href="./style.css" />
 
   <!--
-    Library opsional. Hapus yang tidak dipakai. Versi dipatok supaya hasil stabil.
-    GSAP + ScrollTrigger (pin banyak section, scrub dengan snap):
+    Optional libraries. Remove what you don't use. Versions are pinned so builds stay stable.
+    GSAP + ScrollTrigger (pinning many sections, scrub with snapping):
       <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-    Lenis (smooth scroll, otomatis mati saat reduced-motion lewat setupSmoothScroll):
+    Lenis (smooth scroll; setupSmoothScroll skips it under reduced motion):
       <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
-    Matter.js (physics 2D):
+    Matter.js (2D physics):
       <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
-    Three.js lewat import map (aktifkan blok di bawah):
+    Three.js via an import map (enable the block below):
   -->
   <!--
   <script type="importmap">
@@ -30,12 +30,12 @@
 </head>
 <body>
   <main>
-    <!-- Satu <section> per interaksi. data-section dipakai main.js untuk menemukan section. -->
+    <!-- One <section> per interaction. main.js finds sections by data-section. -->
     <section class="section section--demo" data-section="demo" aria-labelledby="demo-title">
       <div class="section__inner">
         <p class="eyebrow">Placeholder</p>
-        <h1 id="demo-title" class="display">Ganti judul ini</h1>
-        <p class="lead">Teks placeholder. Ganti dengan konten brand.</p>
+        <h1 id="demo-title" class="display">Replace this headline</h1>
+        <p class="lead">Placeholder copy. Replace it with the brand's content.</p>
         <div class="demo-dot" aria-hidden="true"></div>
       </div>
     </section>

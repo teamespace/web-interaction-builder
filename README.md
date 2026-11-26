@@ -7,7 +7,7 @@ A skill for AI coding agents (Claude Code, Codex, Cursor) that builds Awwwards-l
 
 It is distilled from dissecting 17 websites (R01–R17): 12 picked by the team and 5 Awwwards Site of the Day + Developer Award winners chosen to fill technique gaps (page transitions, physics, particles, variable fonts, 3D configurators). The result is 78 patterns, a small shared motion runtime and a quality gate.
 
-> **Status: 0.1.0.** The skill's instructions and pattern notes are written in Indonesian (the team's working language); the agent reads them fine and the pages it builds can be in any language.
+> **Status: 0.1.1.** The skill's instructions and pattern notes are written in Indonesian (the team's working language); the agent reads them fine and the pages it builds can be in any language.
 
 ## Install
 
@@ -69,6 +69,7 @@ skills/web-interaction-builder/
 │   ├── quality-gate.md          # mandatory checklist + asset budget
 │   └── patterns/                # 78 patterns in 6 families + generated index.md
 └── scripts/build_index.py       # rebuilds patterns/index.md
+examples/                        # sections built with the skill (open with any static server)
 evals/                           # test scenarios
 ```
 
@@ -80,6 +81,15 @@ evals/                           # test scenarios
 | Typography | 12 | `masked-split-reveal`, `blur-line-reveal`, `variable-font-style-morph` |
 | Transitions | 12 | `route-veil-transition`, `mpa-view-transition`, `flip-morph`, `circle-wipe` |
 | Generative | 6 | `pixel-sky-dither`, `ascii-glyph-ramp`, `hand-drawn-liveliness` |
+
+## Examples
+
+Two sections built by the skill during testing, in `examples/`:
+
+- `kopi-senja-field`: a closing section where every tap drops a chip that falls and piles up (pattern `physics-drop-field`, Matter.js).
+- `ruang-lantai-cards`: project cards that stack while scrolling, with a word-by-word heading reveal (patterns `sticky-card-stack` + `masked-split-reveal`, CSS only).
+
+Run `python3 -m http.server` in the repo and open `/examples/<name>/`.
 
 ## Principles
 

@@ -550,7 +550,8 @@ export function horizontalStrip(el, { a = 0, b = 1, ratio = 1 } = {}) {
 
 **Resep:**
 1. Kolom flex `gap: 48px`, tiap `.card { position: sticky; top: 106px; height: 70vh }`. Parent `perspective: 1400px`. `.card::after { background: #000; opacity: var(--shade, 0) }`.
-2. Ukur posisi **natural** tiap kartu di resize (set `position: relative` sebentar). Jangan membaca `offsetTop` kartu sticky saat scroll.
+2. Ukur posisi **natural** tiap kartu di `onResize` (set `position: relative` dan `transform: none` sebentar). Jangan membaca `offsetTop` kartu sticky saat scroll, dan jangan mengukur kartu yang masih ter-scale: resize di tengah scroll membuat titik awal meleset ±70px (ditemukan saat tes skill). `defineSection` memanggil `onResize` juga saat window resize, font selesai dimuat, dan `load`.
+5. Keyboard: kalau fokus masuk ke link/tombol di kartu yang sedang tertutup kartu lain, scroll ke kartu itu (`focusin` → `scrollTo` ke `starts[i] - stickyTop`).
 3. Kartu i dipengaruhi kartu i+1: `p = clamp((scrollY + vh·line − start[i+1]) / tinggi[i+1])`.
 4. Varian R04 (fly-away): satu stage sticky 400vh, kartu teratas terbang ke atas (`translateY → −110%`) membuka kartu berikutnya, sisanya `scale(1 − i·0.045)`, copy di kolom kiri ganti lewat `data-active`.
 ```js
@@ -559,11 +560,11 @@ import { defineSection, clamp } from './motion-core.js';
 export function cardStack(el, { scaleTo = 0.85, yTo = 24, rotZ = -3.8, rotX = 8, shade = 0.26, line = 0.5 } = {}) {
   const cards = [...el.querySelectorAll('.card')];
   let starts = [], heights = [];
-  const measure = () => {                                    // posisi NATURAL, bukan posisi "nempel"
-    cards.forEach((c) => (c.style.position = 'relative'));
+  const measure = () => {                                    // posisi NATURAL: tanpa sticky DAN tanpa transform
+    cards.forEach((c) => { c.style.position = 'relative'; c.style.transform = 'none'; });
     starts = cards.map((c) => c.getBoundingClientRect().top + scrollY);
     heights = cards.map((c) => c.offsetHeight);
-    cards.forEach((c) => (c.style.position = ''));
+    cards.forEach((c) => { c.style.position = ''; c.style.transform = ''; });   // update() menulis ulang transform di frame berikutnya
   };
   return defineSection(el, ({ small }) => ({
     onResize: measure,

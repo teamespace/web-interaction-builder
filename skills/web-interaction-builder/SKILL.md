@@ -28,6 +28,9 @@ Pastikan lima hal ini jelas sebelum menulis kode. Tanya hanya yang benar-benar t
 - **Konten & brand:** teks, gambar, warna, font. Kalau belum ada, pakai placeholder netral dan tandai jelas di README supaya tim mudah mengganti.
 - **Target kode:** default HTML + CSS + ES module statis (paling mudah di-preview dan dipindah). Pakai React/Next/Astro hanya kalau project user sudah memakainya.
 - **Lokasi output:** default `web-interaction-lab/demos/<slug>/` kalau folder itu ada, selain itu folder baru di working directory.
+- **Bahasa:** default **English** untuk semua teks di halaman, `alt`/`aria-label`, README, dan komentar kode, walaupun user menulis permintaan dalam bahasa Indonesia. Pakai bahasa lain hanya kalau user memintanya. Nama brand tidak diterjemahkan.
+
+Kalau permintaan ambigu (mis. "muncul per kata" bisa berbasis waktu atau di-scrub scroll), pilih tafsiran yang paling umum, jalankan, dan sebutkan pilihan itu di laporan. Kalau skill berjalan tanpa user yang bisa ditanya (subagent, otomatis), langkah 3 dan 7 cukup ditulis di README.
 
 ### 2. Bedah referensi
 Cek `references/library.md` dulu: referensinya mungkin sudah pernah dibedah, tinggal pakai catatannya.
@@ -42,10 +45,14 @@ Buka `references/patterns/index.md`, pilih pola yang paling dekat, lalu baca han
 - `transitions.md`: page transition, morph, wipe, theme switch
 - `generative.md`: dither, pixel, garis gambar tangan
 
+File keluarga panjang (800–1500 baris). Jangan baca seluruhnya: cari heading polanya (mis. grep "### `sticky-card-stack`") lalu baca dari situ sampai heading `###` berikutnya, plus bagian "Fondasi" di atas file kalau resepnya menyebut helper.
+
 Tulis singkat ke user (2–4 baris) pola yang dipilih, tingkat teknik, dan alasannya, sebelum build. Kalau efek referensi bisa dicapai lebih ringan, katakan.
 
 ### 4. Build
-- Mulai dari `assets/starter/` (salin ke folder output): `index.html`, `style.css`, `motion-core.js`, `main.js`. `motion-core.js` berisi helper bersama; jangan menulis ulang helper yang sudah ada.
+- Mulai dari `assets/starter/` (salin ke folder output): `index.html`, `style.css`, `motion-core.js`, `main.js`, plus `split.js` (teks dipecah per kata/huruf/baris, aksesibel) dan `pointer-kit.js` (`bindDrag`: drag, lempar, tap aman di touch) kalau resepnya memakai. Helper yang sudah ada jangan ditulis ulang.
+- `.section` di starter adalah grid tengah untuk section sederhana. Untuk stack, cerita pinned, atau layout full-bleed, pakai `.section--flow` / `.section--pinned`, jangan menimpa aturan grid satu per satu.
+- Font: starter memakai font sistem. Kalau pakai web font, tambahkan `<link>`-nya di `index.html` dan taruh namanya di token `--font-*`.
 - Satu section = satu fungsi `defineSection(el, setup)`. Parameter penting (durasi, range, stiffness, warna) dikumpulkan di satu objek `CONFIG` di atas file, diberi komentar, supaya tim bisa fine-tune tanpa membaca seluruh kode.
 - Library hanya kalau perlu, dari CDN dengan versi pasti: GSAP 3.12.5 (cdnjs), Lenis 1.1.13 (jsDelivr), Three.js 0.160.0 lewat import map (jsDelivr), Matter.js 0.20.0 (jsDelivr). Mode A sering cukup tanpa library sama sekali.
 - Mode B: baca `references/mode-full-website.md` dulu (urutan section, satu clock, transisi antar section/halaman, budget total).
@@ -74,6 +81,8 @@ Kalau sesi ini punya akses ke doc tim "Web Interaction Lab — References & Log"
 ├── index.html      # markup semantik + import map kalau perlu
 ├── style.css       # token warna/font di :root, layout, state reduced-motion
 ├── motion-core.js  # salinan dari assets/starter (jangan diubah tanpa alasan)
+├── split.js        # opsional, salinan dari starter kalau ada split text
+├── pointer-kit.js  # opsional, salinan dari starter kalau ada drag/lempar/tap
 ├── main.js         # CONFIG + defineSection per section
 └── README.md       # pola, sumber referensi (Rxx/URL), parameter CONFIG, cara ganti konten, yang belum diverifikasi
 ```

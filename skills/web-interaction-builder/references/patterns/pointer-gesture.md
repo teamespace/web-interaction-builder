@@ -50,7 +50,7 @@ Prinsipnya: pakai teknik paling ringan yang hasilnya sama. Kebanyakan pola cukup
 
 Semua lerp per frame di referensi (R04, R06, R16) jalan 2× lebih cepat di layar 120 Hz. Selalu konversi.
 
-**`bindDrag`.** Helper yang dipakai banyak resep di bawah. Usulan: simpan sebagai `assets/starter/pointer-kit.js` di samping `motion-core.js` (belum ada di starter).
+**`bindDrag`.** Helper yang dipakai banyak resep di bawah. Sudah ada di starter sebagai `assets/starter/pointer-kit.js`; salin file itu ke output kalau resep memakainya. Kode di bawah hanya untuk referensi cara kerjanya.
 
 ```js
 import { createVelocityTracker } from './motion-core.js';
@@ -1039,7 +1039,8 @@ defineSection(document.querySelector('[data-mosaic]'), ({ el, reduced }) => {
 
 ```js
 import { defineSection } from './motion-core.js';
-const { Engine, Bodies, Body, Composite } = window.Matter;     // <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js">
+import { bindDrag } from './pointer-kit.js';
+const { Engine, Bodies, Body, Composite } = window.Matter;     // <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js">
 defineSection(document.querySelector('[data-drop-field]'), ({ el, reduced }) => {
   const engine = Engine.create(), CHIPS = JSON.parse(el.dataset.chips), chips = []; let walls = [], lastY = scrollY;  // CHIPS: [{src, w, h, round?}] px artboard 1440
   const build = () => {                                       // lantai + 2 dinding tinggi, TANPA atap
@@ -1049,7 +1050,8 @@ defineSection(document.querySelector('[data-drop-field]'), ({ el, reduced }) => 
     Composite.add(engine.world, walls);
   };
   const kill = (c) => { Composite.remove(engine.world, c.body); c.node.remove(); chips.splice(chips.indexOf(c), 1); }; build();
-  el.addEventListener('pointerdown', (e) => {
+  // Spawn on tap, not pointerdown: on touch, pointerdown also fires when a scroll starts.
+  const unbind = bindDrag(el, { onTap: (e) => {
     const r = el.getBoundingClientRect(), sc = r.width / el.clientWidth, x = (e.clientX - r.left) / sc, y = (e.clientY - r.top) / sc;   // aman walau parent di-scale
     const c = CHIPS[(Math.random() * CHIPS.length) | 0], k = (0.5 * innerWidth) / 1440, w = c.w * k, h = c.h * k, opt = { restitution: 0.15, friction: 0.4, frictionAir: 0.01 };
     const body = c.round ? Bodies.circle(x, y - h * 0.35, w / 2, opt) : Bodies.rectangle(x, y - h * 0.35, w, h, opt);
@@ -1057,25 +1059,32 @@ defineSection(document.querySelector('[data-drop-field]'), ({ el, reduced }) => 
     Object.assign(node.style, { width: `${w}px`, height: `${h}px`, margin: `${-h / 2}px 0 0 ${-w / 2}px` });
     Body.setAngle(body, (Math.random() - 0.5) * 0.4); el.append(node); Composite.add(engine.world, body); chips.push({ node, body });
     if (chips.length > 30) kill(chips[0]);                                       // FIFO
-    if (reduced) for (let i = 0; i < 240; i++) Engine.update(engine, 16);         // reduced: langsung diam
-  });
+    if (reduced) { for (let i = 0; i < 240; i++) Engine.update(engine, 1000 / 60); draw(); }  // reduced: langsung diam, tetap bisa diklik
+  } });
+  const draw = () => {
+    for (const c of [...chips]) {
+      const { x, y } = c.body.position;
+      if (y < -el.clientHeight) kill(c);                                         // terbang keluar atas
+      else c.node.style.transform = `translate3d(${x}px,${y}px,0) rotate(${c.body.angle}rad)`;
+    }
+  };
+  let acc = 0;
   return {
     onResize: build,
+    onEnter: () => { lastY = scrollY; },                                          // cegah frame pertama terbaca scroll super cepat
+    renderStatic: () => {},                                                       // reduced: tanpa loop; tap tetap menjatuhkan chip yang langsung diam
+    destroy: () => { unbind(); chips.slice().forEach(kill); },
     update(dt) {
-      const dy = Math.abs(scrollY - lastY), speed = dy > innerHeight ? 0 : dy / Math.max(dt, 0.004) / innerHeight; lastY = scrollY;  // abaikan loncatan saat section masuk lagi
-      engine.gravity.y = !reduced && speed > 0.15 ? -0.2 : 1;
-      Engine.update(engine, Math.min(dt * 1000, 32));
-      for (const c of [...chips]) {
-        const { x, y } = c.body.position;
-        if (y < -el.clientHeight) kill(c);                                       // terbang keluar atas
-        else c.node.style.transform = `translate3d(${x}px,${y}px,0) rotate(${c.body.angle}rad)`;
-      }
+      const dy = Math.abs(scrollY - lastY), speed = dy / Math.max(dt, 0.004) / innerHeight; lastY = scrollY;
+      engine.gravity.y = speed > 0.15 ? -0.2 : 1;
+      for (acc += dt * 1000; acc >= 1000 / 60; acc -= 1000 / 60) Engine.update(engine, 1000 / 60);   // step tetap: Matter memberi warning di atas 16.67 ms
+      draw();
     },
   };
 });
 ```
 
-**Touch, keyboard & reduced-motion:** R14 desktop-only (splash di ≤ 767 px). `pointerdown` sudah jalan di touch; `touch-action: manipulation` menjaga scroll tetap hidup, chip minimum ±48 px. Keyboard: tombol "Drop" yang men-spawn di x acak. Reduced: R14 tidak punya cabang reduced; pre-simulasi ±240 step supaya chip langsung diam, tanpa gravity flip, tanpa kedip teks. R07 mengganti fisika dengan susunan statis.
+**Touch, keyboard & reduced-motion:** R14 desktop-only (splash di ≤ 767 px). Spawn lewat `onTap` dari `bindDrag` (≤ 10px, < 320ms), bukan `pointerdown`: di touch, `pointerdown` juga terpicu saat mulai scroll, jadi setiap scroll menjatuhkan chip (ditemukan saat tes skill). `touch-action: manipulation` menjaga scroll tetap hidup, chip minimum ±48 px. Saat chip jatuh, beri z-index tombol di atas chip supaya tombol tidak tertutup. Keyboard: tombol "Drop" yang men-spawn di x acak. Reduced: R14 tidak punya cabang reduced; pre-simulasi ±240 step supaya chip langsung diam, tanpa gravity flip, tanpa kedip teks. R07 mengganti fisika dengan susunan statis.
 
 **Jebakan:**
 - Kecepatan scroll diukur dari posisi terakhir yang bisa basi saat field aktif lagi, jadi frame pertama terbaca sebagai scroll super cepat (gravity terbalik sekejap). R14 sendiri mencatat: ukur sebelum early-return.
