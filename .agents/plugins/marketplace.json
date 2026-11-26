@@ -1,0 +1,21 @@
+{
+  "name": "web-interaction-builder",
+  "interface": {
+    "displayName": "Web Interaction Builder"
+  },
+  "plugins": [
+    {
+      "name": "web-interaction-builder",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/teamespace/web-interaction-builder.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Design"
+    }
+  ]
+}

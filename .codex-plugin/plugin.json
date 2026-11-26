@@ -1,0 +1,28 @@
+{
+  "name": "web-interaction-builder",
+  "version": "0.1.0",
+  "description": "Build Awwwards-level web interactions from a reference: one interactive section or a full website. Distilled from 17 dissected sites into 78 patterns, a shared motion runtime and a quality gate.",
+  "author": {
+    "name": "teamespace",
+    "url": "https://github.com/teamespace"
+  },
+  "homepage": "https://github.com/teamespace/web-interaction-builder",
+  "repository": "https://github.com/teamespace/web-interaction-builder",
+  "license": "MIT",
+  "keywords": ["skills", "animation", "interaction", "gsap", "threejs", "scroll", "webgl", "awwwards"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Web Interaction Builder",
+    "shortDescription": "Awwwards-level web interactions from a reference.",
+    "longDescription": "Build Awwwards-level web interactions from a reference: one interactive section or a full website. Distilled from 17 dissected sites into 78 patterns, a shared motion runtime and a quality gate.",
+    "developerName": "teamespace",
+    "category": "Design",
+    "capabilities": [],
+    "websiteURL": "https://github.com/teamespace/web-interaction-builder",
+    "defaultPrompt": [
+      "Build one section with an interaction like the hero on this reference site.",
+      "Make a scroll-driven product story section like this reference.",
+      "Build a one-page site with smooth scroll, reveals and a page transition."
+    ]
+  }
+}
